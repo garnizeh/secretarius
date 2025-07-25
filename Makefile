@@ -1,7 +1,7 @@
 # EngLog Makefile
 # "Make it so!" - Jean-Luc Picard 🚀
 
-.PHONY: help build clean test lint dev-up dev-down run-api run-worker generate migrate sqlc proto swagger docker-build docker-push
+.PHONY: help build clean test lint dev-up dev-down run-api run-worker generate migrate-up migrate-down migrate-status migrate-reset migrate-create sqlc proto swagger docker-build docker-push
 
 # Default target
 .DEFAULT_GOAL := help
@@ -13,6 +13,13 @@ GO_FILES := $(shell find . -name "*.go" -type f -not -path "./vendor/*")
 DOCKER_REGISTRY := docker.io
 IMAGE_NAME := englog
 VERSION := $(shell git describe --tags --always --dirty)
+
+# Environment variables for database connection
+DB_USER := englog
+DB_PASSWORD := englog_dev_password
+DB_HOST := localhost
+DB_PORT := 5432
+DB_NAME := englog
 
 ## help: Show this help message
 help:
@@ -91,35 +98,25 @@ swagger:
 	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
 	@swag init -g cmd/api/main.go -o docs/
 
-## migrate-up: Run database migrations up
-migrate-up:
-	@echo "Running database migrations..."
-	@which migrate > /dev/null || (echo "Installing migrate..." && go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest)
-	@migrate -path migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable" up
-
-## migrate-down: Run database migrations down
-migrate-down:
-	@echo "Rolling back database migrations..."
-	@migrate -path migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable" down
-
 ## migrate-create: Create a new migration file (usage: make migrate-create NAME=migration_name)
 migrate-create:
 	@if [ -z "$(NAME)" ]; then echo "Usage: make migrate-create NAME=migration_name"; exit 1; fi
-	@migrate create -ext sql -dir migrations $(NAME)
+	@which goose > /dev/null || (echo "Installing goose..." && go install github.com/pressly/goose/v3/cmd/goose@latest)
+	@goose -dir internal/sqlc/schema create $(NAME) sql
 
 ## dev-up: Start development environment with Docker Compose
 dev-up:
 	@echo "Starting development environment..."
-	@docker-compose -f deployments/docker-compose.dev.yml up -d
+	@docker compose -f deployments/docker-compose.dev.yml up -d
 
 ## dev-down: Stop development environment
 dev-down:
 	@echo "Stopping development environment..."
-	@docker-compose -f deployments/docker-compose.dev.yml down
+	@docker compose -f deployments/docker-compose.dev.yml down
 
 ## dev-logs: View development environment logs
 dev-logs:
-	@docker-compose -f deployments/docker-compose.dev.yml logs -f
+	@docker compose -f deployments/docker-compose.dev.yml logs -f
 
 ## run-api: Run API server locally
 run-api:
@@ -168,7 +165,7 @@ install-tools:
 	@go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	@go install github.com/swaggo/swag/cmd/swag@latest
 	@go install github.com/cosmtrek/air@latest
-	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+	@go install github.com/pressly/goose/v3/cmd/goose@latest
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
