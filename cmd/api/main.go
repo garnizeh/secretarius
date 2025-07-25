@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/garnizeh/englog/internal/store"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,6 +22,29 @@ var (
 func main() {
 	fmt.Printf("EngLog API Server v%s\n", Version)
 	fmt.Println("🚀 Starting up...")
+
+	ctx := context.Background()
+
+	// Database connection setup
+	db, err := store.NewDB(ctx, store.Config{
+		User:          os.Getenv("DB_USER"),
+		Password:      os.Getenv("DB_PASSWORD"),
+		HostReadWrite: os.Getenv("DB_HOST_READ_WRITE"),
+		HostReadOnly:  os.Getenv("DB_HOST_READ_ONLY"),
+		Name:          os.Getenv("DB_NAME"),
+		Schema:        os.Getenv("DB_SCHEMA"),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to database: %v", err))
+	}
+	defer func() {
+		db.Close()
+		fmt.Println("✅ Database connection closed")
+	}()
+
+	if err := db.Check(ctx); err != nil {
+		panic(fmt.Sprintf("Failed to check database connection: %v", err))
+	}
 
 	// Set Gin mode based on environment
 	if os.Getenv("APP_ENV") == "production" {
@@ -76,7 +100,7 @@ func main() {
 	fmt.Println("\n🛑 Shutting down server...")
 
 	// Give outstanding requests 30 seconds to complete
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
