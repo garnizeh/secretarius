@@ -87,3 +87,8 @@ You are an experienced software architect and senior Golang developer with exper
 - Include usage examples where appropriate
 - Document domain model and relationships
 - Update API documentation for all endpoints
+
+## Project
+
+- The project main documentation is in the `docs/` directory
+- Use Markdown format for documentation files
