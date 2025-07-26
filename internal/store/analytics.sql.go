@@ -454,7 +454,7 @@ type GetTopProjectsByTimeParams struct {
 type GetTopProjectsByTimeRow struct {
 	ID           uuid.UUID      `db:"id" json:"id"`
 	Name         string         `db:"name" json:"name"`
-	Color        *string        `db:"color" json:"color"`
+	Color        pgtype.Text    `db:"color" json:"color"`
 	EntryCount   int64          `db:"entry_count" json:"entry_count"`
 	TotalMinutes int64          `db:"total_minutes" json:"total_minutes"`
 	Percentage   pgtype.Numeric `db:"percentage" json:"percentage"`

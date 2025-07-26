@@ -1,11 +1,5 @@
 -- +goose Up
 -- +goose StatementBegin
--- Enable UUID extension for PostgreSQL
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Enable pg_stat_statements for performance monitoring
-CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
-
 -- Users table with authentication and profile information
 CREATE TABLE
     IF NOT EXISTS users (

@@ -47,9 +47,9 @@ RETURNING id, name, color, description, usage_count, created_at
 `
 
 type CreateTagParams struct {
-	Name        string  `db:"name" json:"name"`
-	Color       *string `db:"color" json:"color"`
-	Description *string `db:"description" json:"description"`
+	Name        string      `db:"name" json:"name"`
+	Color       pgtype.Text `db:"color" json:"color"`
+	Description pgtype.Text `db:"description" json:"description"`
 }
 
 // EngLog Tags Management Queries
@@ -340,11 +340,11 @@ ORDER BY user_usage_count DESC, t.name ASC
 `
 
 type GetUserTagUsageRow struct {
-	ID             uuid.UUID `db:"id" json:"id"`
-	Name           string    `db:"name" json:"name"`
-	Color          *string   `db:"color" json:"color"`
-	Description    *string   `db:"description" json:"description"`
-	UserUsageCount int64     `db:"user_usage_count" json:"user_usage_count"`
+	ID             uuid.UUID   `db:"id" json:"id"`
+	Name           string      `db:"name" json:"name"`
+	Color          pgtype.Text `db:"color" json:"color"`
+	Description    pgtype.Text `db:"description" json:"description"`
+	UserUsageCount int64       `db:"user_usage_count" json:"user_usage_count"`
 }
 
 func (q *Queries) GetUserTagUsage(ctx context.Context, userID uuid.UUID) ([]GetUserTagUsageRow, error) {
@@ -396,8 +396,8 @@ LIMIT $2
 `
 
 type SearchTagsParams struct {
-	Column1 *string `db:"column_1" json:"column_1"`
-	Limit   int32   `db:"limit" json:"limit"`
+	Column1 pgtype.Text `db:"column_1" json:"column_1"`
+	Limit   int32       `db:"limit" json:"limit"`
 }
 
 func (q *Queries) SearchTags(ctx context.Context, arg SearchTagsParams) ([]Tag, error) {
@@ -435,10 +435,10 @@ RETURNING id, name, color, description, usage_count, created_at
 `
 
 type UpdateTagParams struct {
-	ID          uuid.UUID `db:"id" json:"id"`
-	Name        string    `db:"name" json:"name"`
-	Color       *string   `db:"color" json:"color"`
-	Description *string   `db:"description" json:"description"`
+	ID          uuid.UUID   `db:"id" json:"id"`
+	Name        string      `db:"name" json:"name"`
+	Color       pgtype.Text `db:"color" json:"color"`
+	Description pgtype.Text `db:"description" json:"description"`
 }
 
 func (q *Queries) UpdateTag(ctx context.Context, arg UpdateTagParams) (Tag, error) {

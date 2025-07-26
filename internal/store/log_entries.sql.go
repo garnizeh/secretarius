@@ -26,7 +26,7 @@ type CreateLogEntryParams struct {
 	UserID      uuid.UUID          `db:"user_id" json:"user_id"`
 	ProjectID   pgtype.UUID        `db:"project_id" json:"project_id"`
 	Title       string             `db:"title" json:"title"`
-	Description *string            `db:"description" json:"description"`
+	Description pgtype.Text        `db:"description" json:"description"`
 	Type        string             `db:"type" json:"type"`
 	StartTime   pgtype.Timestamptz `db:"start_time" json:"start_time"`
 	EndTime     pgtype.Timestamptz `db:"end_time" json:"end_time"`
@@ -436,11 +436,11 @@ type GetLogEntriesWithTagsRow struct {
 	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
 	ProjectID       pgtype.UUID        `db:"project_id" json:"project_id"`
 	Title           string             `db:"title" json:"title"`
-	Description     *string            `db:"description" json:"description"`
+	Description     pgtype.Text        `db:"description" json:"description"`
 	Type            string             `db:"type" json:"type"`
 	StartTime       pgtype.Timestamptz `db:"start_time" json:"start_time"`
 	EndTime         pgtype.Timestamptz `db:"end_time" json:"end_time"`
-	DurationMinutes *int32             `db:"duration_minutes" json:"duration_minutes"`
+	DurationMinutes pgtype.Int4        `db:"duration_minutes" json:"duration_minutes"`
 	ValueRating     string             `db:"value_rating" json:"value_rating"`
 	ImpactLevel     string             `db:"impact_level" json:"impact_level"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -528,17 +528,17 @@ type GetRecentLogEntriesRow struct {
 	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
 	ProjectID       pgtype.UUID        `db:"project_id" json:"project_id"`
 	Title           string             `db:"title" json:"title"`
-	Description     *string            `db:"description" json:"description"`
+	Description     pgtype.Text        `db:"description" json:"description"`
 	Type            string             `db:"type" json:"type"`
 	StartTime       pgtype.Timestamptz `db:"start_time" json:"start_time"`
 	EndTime         pgtype.Timestamptz `db:"end_time" json:"end_time"`
-	DurationMinutes *int32             `db:"duration_minutes" json:"duration_minutes"`
+	DurationMinutes pgtype.Int4        `db:"duration_minutes" json:"duration_minutes"`
 	ValueRating     string             `db:"value_rating" json:"value_rating"`
 	ImpactLevel     string             `db:"impact_level" json:"impact_level"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	ProjectName     *string            `db:"project_name" json:"project_name"`
-	ProjectColor    *string            `db:"project_color" json:"project_color"`
+	ProjectName     pgtype.Text        `db:"project_name" json:"project_name"`
+	ProjectColor    pgtype.Text        `db:"project_color" json:"project_color"`
 }
 
 func (q *Queries) GetRecentLogEntries(ctx context.Context, arg GetRecentLogEntriesParams) ([]GetRecentLogEntriesRow, error) {
@@ -629,9 +629,9 @@ LIMIT $3
 `
 
 type SearchLogEntriesParams struct {
-	UserID  uuid.UUID `db:"user_id" json:"user_id"`
-	Column2 *string   `db:"column_2" json:"column_2"`
-	Limit   int32     `db:"limit" json:"limit"`
+	UserID  uuid.UUID   `db:"user_id" json:"user_id"`
+	Column2 pgtype.Text `db:"column_2" json:"column_2"`
+	Limit   int32       `db:"limit" json:"limit"`
 }
 
 func (q *Queries) SearchLogEntries(ctx context.Context, arg SearchLogEntriesParams) ([]LogEntry, error) {
@@ -680,7 +680,7 @@ RETURNING id, user_id, project_id, title, description, type, start_time, end_tim
 type UpdateLogEntryParams struct {
 	ID          uuid.UUID          `db:"id" json:"id"`
 	Title       string             `db:"title" json:"title"`
-	Description *string            `db:"description" json:"description"`
+	Description pgtype.Text        `db:"description" json:"description"`
 	Type        string             `db:"type" json:"type"`
 	ProjectID   pgtype.UUID        `db:"project_id" json:"project_id"`
 	StartTime   pgtype.Timestamptz `db:"start_time" json:"start_time"`

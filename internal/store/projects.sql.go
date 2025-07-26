@@ -23,13 +23,13 @@ INSERT INTO projects (
 
 type CreateProjectParams struct {
 	Name        string      `db:"name" json:"name"`
-	Description *string     `db:"description" json:"description"`
-	Color       *string     `db:"color" json:"color"`
-	Status      *string     `db:"status" json:"status"`
+	Description pgtype.Text `db:"description" json:"description"`
+	Color       pgtype.Text `db:"color" json:"color"`
+	Status      pgtype.Text `db:"status" json:"status"`
 	StartDate   pgtype.Date `db:"start_date" json:"start_date"`
 	EndDate     pgtype.Date `db:"end_date" json:"end_date"`
 	CreatedBy   uuid.UUID   `db:"created_by" json:"created_by"`
-	IsDefault   *bool       `db:"is_default" json:"is_default"`
+	IsDefault   pgtype.Bool `db:"is_default" json:"is_default"`
 }
 
 // EngLog Project Management Queries
@@ -227,13 +227,13 @@ ORDER BY p.is_default DESC, entry_count DESC
 type GetProjectsWithActivityRow struct {
 	ID           uuid.UUID          `db:"id" json:"id"`
 	Name         string             `db:"name" json:"name"`
-	Description  *string            `db:"description" json:"description"`
-	Color        *string            `db:"color" json:"color"`
-	Status       *string            `db:"status" json:"status"`
+	Description  pgtype.Text        `db:"description" json:"description"`
+	Color        pgtype.Text        `db:"color" json:"color"`
+	Status       pgtype.Text        `db:"status" json:"status"`
 	StartDate    pgtype.Date        `db:"start_date" json:"start_date"`
 	EndDate      pgtype.Date        `db:"end_date" json:"end_date"`
 	CreatedBy    uuid.UUID          `db:"created_by" json:"created_by"`
-	IsDefault    *bool              `db:"is_default" json:"is_default"`
+	IsDefault    pgtype.Bool        `db:"is_default" json:"is_default"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 	EntryCount   int64              `db:"entry_count" json:"entry_count"`
@@ -319,9 +319,9 @@ RETURNING id, name, description, color, status, start_date, end_date, created_by
 type UpdateProjectParams struct {
 	ID          uuid.UUID   `db:"id" json:"id"`
 	Name        string      `db:"name" json:"name"`
-	Description *string     `db:"description" json:"description"`
-	Color       *string     `db:"color" json:"color"`
-	Status      *string     `db:"status" json:"status"`
+	Description pgtype.Text `db:"description" json:"description"`
+	Color       pgtype.Text `db:"color" json:"color"`
+	Status      pgtype.Text `db:"status" json:"status"`
 	StartDate   pgtype.Date `db:"start_date" json:"start_date"`
 	EndDate     pgtype.Date `db:"end_date" json:"end_date"`
 }

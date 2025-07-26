@@ -31,12 +31,12 @@ type GeneratedInsight struct {
 	PeriodEnd            pgtype.Date        `db:"period_end" json:"period_end"`
 	Title                string             `db:"title" json:"title"`
 	Content              string             `db:"content" json:"content"`
-	Summary              *string            `db:"summary" json:"summary"`
+	Summary              pgtype.Text        `db:"summary" json:"summary"`
 	Metadata             []byte             `db:"metadata" json:"metadata"`
-	GenerationModel      *string            `db:"generation_model" json:"generation_model"`
-	GenerationDurationMs *int32             `db:"generation_duration_ms" json:"generation_duration_ms"`
+	GenerationModel      pgtype.Text        `db:"generation_model" json:"generation_model"`
+	GenerationDurationMs pgtype.Int4        `db:"generation_duration_ms" json:"generation_duration_ms"`
 	QualityScore         pgtype.Numeric     `db:"quality_score" json:"quality_score"`
-	Status               *string            `db:"status" json:"status"`
+	Status               pgtype.Text        `db:"status" json:"status"`
 	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
@@ -46,11 +46,11 @@ type LogEntry struct {
 	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
 	ProjectID       pgtype.UUID        `db:"project_id" json:"project_id"`
 	Title           string             `db:"title" json:"title"`
-	Description     *string            `db:"description" json:"description"`
+	Description     pgtype.Text        `db:"description" json:"description"`
 	Type            string             `db:"type" json:"type"`
 	StartTime       pgtype.Timestamptz `db:"start_time" json:"start_time"`
 	EndTime         pgtype.Timestamptz `db:"end_time" json:"end_time"`
-	DurationMinutes *int32             `db:"duration_minutes" json:"duration_minutes"`
+	DurationMinutes pgtype.Int4        `db:"duration_minutes" json:"duration_minutes"`
 	ValueRating     string             `db:"value_rating" json:"value_rating"`
 	ImpactLevel     string             `db:"impact_level" json:"impact_level"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -66,13 +66,13 @@ type LogEntryTag struct {
 type Project struct {
 	ID          uuid.UUID          `db:"id" json:"id"`
 	Name        string             `db:"name" json:"name"`
-	Description *string            `db:"description" json:"description"`
-	Color       *string            `db:"color" json:"color"`
-	Status      *string            `db:"status" json:"status"`
+	Description pgtype.Text        `db:"description" json:"description"`
+	Color       pgtype.Text        `db:"color" json:"color"`
+	Status      pgtype.Text        `db:"status" json:"status"`
 	StartDate   pgtype.Date        `db:"start_date" json:"start_date"`
 	EndDate     pgtype.Date        `db:"end_date" json:"end_date"`
 	CreatedBy   uuid.UUID          `db:"created_by" json:"created_by"`
-	IsDefault   *bool              `db:"is_default" json:"is_default"`
+	IsDefault   pgtype.Bool        `db:"is_default" json:"is_default"`
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
@@ -80,7 +80,7 @@ type Project struct {
 type ProjectPerformanceMetric struct {
 	ProjectID          uuid.UUID          `db:"project_id" json:"project_id"`
 	ProjectName        string             `db:"project_name" json:"project_name"`
-	ProjectStatus      *string            `db:"project_status" json:"project_status"`
+	ProjectStatus      pgtype.Text        `db:"project_status" json:"project_status"`
 	ProjectOwner       uuid.UUID          `db:"project_owner" json:"project_owner"`
 	TotalEntries       int64              `db:"total_entries" json:"total_entries"`
 	TotalMinutes       int64              `db:"total_minutes" json:"total_minutes"`
@@ -100,7 +100,7 @@ type RefreshTokenBlacklist struct {
 	UserID        uuid.UUID          `db:"user_id" json:"user_id"`
 	ExpiresAt     pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	BlacklistedAt pgtype.Timestamptz `db:"blacklisted_at" json:"blacklisted_at"`
-	Reason        *string            `db:"reason" json:"reason"`
+	Reason        pgtype.Text        `db:"reason" json:"reason"`
 }
 
 type ScheduledDeletion struct {
@@ -108,7 +108,7 @@ type ScheduledDeletion struct {
 	UserID       uuid.UUID          `db:"user_id" json:"user_id"`
 	ScheduledAt  pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
 	DeletionType string             `db:"deletion_type" json:"deletion_type"`
-	Status       *string            `db:"status" json:"status"`
+	Status       pgtype.Text        `db:"status" json:"status"`
 	CompletedAt  pgtype.Timestamptz `db:"completed_at" json:"completed_at"`
 	Metadata     []byte             `db:"metadata" json:"metadata"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -117,9 +117,9 @@ type ScheduledDeletion struct {
 type Tag struct {
 	ID          uuid.UUID          `db:"id" json:"id"`
 	Name        string             `db:"name" json:"name"`
-	Color       *string            `db:"color" json:"color"`
-	Description *string            `db:"description" json:"description"`
-	UsageCount  *int32             `db:"usage_count" json:"usage_count"`
+	Color       pgtype.Text        `db:"color" json:"color"`
+	Description pgtype.Text        `db:"description" json:"description"`
+	UsageCount  pgtype.Int4        `db:"usage_count" json:"usage_count"`
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
@@ -128,16 +128,16 @@ type Task struct {
 	TaskType             string             `db:"task_type" json:"task_type"`
 	UserID               pgtype.UUID        `db:"user_id" json:"user_id"`
 	Payload              []byte             `db:"payload" json:"payload"`
-	Status               *string            `db:"status" json:"status"`
-	Priority             *int32             `db:"priority" json:"priority"`
-	MaxRetries           *int32             `db:"max_retries" json:"max_retries"`
-	RetryCount           *int32             `db:"retry_count" json:"retry_count"`
+	Status               pgtype.Text        `db:"status" json:"status"`
+	Priority             pgtype.Int4        `db:"priority" json:"priority"`
+	MaxRetries           pgtype.Int4        `db:"max_retries" json:"max_retries"`
+	RetryCount           pgtype.Int4        `db:"retry_count" json:"retry_count"`
 	ScheduledAt          pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
 	StartedAt            pgtype.Timestamptz `db:"started_at" json:"started_at"`
 	CompletedAt          pgtype.Timestamptz `db:"completed_at" json:"completed_at"`
 	Result               []byte             `db:"result" json:"result"`
-	ErrorMessage         *string            `db:"error_message" json:"error_message"`
-	ProcessingDurationMs *int32             `db:"processing_duration_ms" json:"processing_duration_ms"`
+	ErrorMessage         pgtype.Text        `db:"error_message" json:"error_message"`
+	ProcessingDurationMs pgtype.Int4        `db:"processing_duration_ms" json:"processing_duration_ms"`
 	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
@@ -148,7 +148,7 @@ type User struct {
 	PasswordHash string             `db:"password_hash" json:"password_hash"`
 	FirstName    string             `db:"first_name" json:"first_name"`
 	LastName     string             `db:"last_name" json:"last_name"`
-	Timezone     *string            `db:"timezone" json:"timezone"`
+	Timezone     pgtype.Text        `db:"timezone" json:"timezone"`
 	Preferences  []byte             `db:"preferences" json:"preferences"`
 	LastLoginAt  pgtype.Timestamptz `db:"last_login_at" json:"last_login_at"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
@@ -158,7 +158,7 @@ type User struct {
 type UserActivitySummary struct {
 	UserID                  uuid.UUID   `db:"user_id" json:"user_id"`
 	Email                   string      `db:"email" json:"email"`
-	Timezone                *string     `db:"timezone" json:"timezone"`
+	Timezone                pgtype.Text `db:"timezone" json:"timezone"`
 	TotalEntries            int64       `db:"total_entries" json:"total_entries"`
 	TotalMinutes            int64       `db:"total_minutes" json:"total_minutes"`
 	AvgDurationMinutes      float64     `db:"avg_duration_minutes" json:"avg_duration_minutes"`
@@ -192,7 +192,7 @@ type UserSession struct {
 	ExpiresAt        pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	LastActivity     pgtype.Timestamptz `db:"last_activity" json:"last_activity"`
 	IpAddress        *netip.Addr        `db:"ip_address" json:"ip_address"`
-	UserAgent        *string            `db:"user_agent" json:"user_agent"`
-	IsActive         *bool              `db:"is_active" json:"is_active"`
+	UserAgent        pgtype.Text        `db:"user_agent" json:"user_agent"`
+	IsActive         pgtype.Bool        `db:"is_active" json:"is_active"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
