@@ -13,14 +13,11 @@ import (
 
 type Querier interface {
 	AddTagToLogEntry(ctx context.Context, arg AddTagToLogEntryParams) error
-	// EngLog Authentication Queries
-	// JWT token management and session handling
-	AddTokenToBlacklist(ctx context.Context, arg AddTokenToBlacklistParams) error
 	ArchiveInsight(ctx context.Context, arg ArchiveInsightParams) error
 	CancelDeletionRequest(ctx context.Context, arg CancelDeletionRequestParams) error
 	CancelTask(ctx context.Context, id uuid.UUID) error
+	CleanupExpiredDenylistedTokens(ctx context.Context) error
 	CleanupExpiredSessions(ctx context.Context) error
-	CleanupExpiredTokens(ctx context.Context) error
 	CleanupOldInsights(ctx context.Context, createdAt pgtype.Timestamptz) error
 	CleanupOldTasks(ctx context.Context, completedAt pgtype.Timestamptz) error
 	CleanupUnusedTags(ctx context.Context) error
@@ -34,6 +31,9 @@ type Querier interface {
 	// EngLog Project Management Queries
 	// Project CRUD operations and statistics
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error)
+	// EngLog Authentication Queries
+	// JWT token management and session handling
+	CreateRefreshTokenDenylist(ctx context.Context, arg CreateRefreshTokenDenylistParams) error
 	// EngLog Tags Management Queries
 	// Tag CRUD operations and usage statistics
 	CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error)
@@ -56,10 +56,10 @@ type Querier interface {
 	GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID) ([]UserSession, error)
 	GetActivityTypeDistribution(ctx context.Context, arg GetActivityTypeDistributionParams) ([]GetActivityTypeDistributionRow, error)
 	GetAllTags(ctx context.Context) ([]Tag, error)
-	GetBlacklistedTokensByUser(ctx context.Context, userID uuid.UUID) ([]RefreshTokenBlacklist, error)
 	GetComparisonStats(ctx context.Context, arg GetComparisonStatsParams) (GetComparisonStatsRow, error)
 	GetDailyActivityPattern(ctx context.Context, arg GetDailyActivityPatternParams) ([]DailyActivityPattern, error)
 	GetDailyProductivityStats(ctx context.Context, arg GetDailyProductivityStatsParams) ([]GetDailyProductivityStatsRow, error)
+	GetDenylistedTokensByUser(ctx context.Context, userID uuid.UUID) ([]RefreshTokenDenylist, error)
 	GetHighValueEntries(ctx context.Context, arg GetHighValueEntriesParams) ([]LogEntry, error)
 	GetImpactLevelDistribution(ctx context.Context, arg GetImpactLevelDistributionParams) ([]GetImpactLevelDistributionRow, error)
 	GetInsightByID(ctx context.Context, id uuid.UUID) (GeneratedInsight, error)
@@ -124,7 +124,7 @@ type Querier interface {
 	GetUserTaskHistory(ctx context.Context, arg GetUserTaskHistoryParams) ([]Task, error)
 	GetValueRatingDistribution(ctx context.Context, arg GetValueRatingDistributionParams) ([]GetValueRatingDistributionRow, error)
 	GetWeeklyActivitySummary(ctx context.Context, arg GetWeeklyActivitySummaryParams) ([]GetWeeklyActivitySummaryRow, error)
-	IsTokenBlacklisted(ctx context.Context, jti string) (bool, error)
+	IsRefreshTokenDenylisted(ctx context.Context, jti string) (bool, error)
 	RefreshUserActivitySummary(ctx context.Context) error
 	RemoveTagFromLogEntry(ctx context.Context, arg RemoveTagFromLogEntryParams) error
 	ResetStuckTasks(ctx context.Context) error

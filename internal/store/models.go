@@ -95,12 +95,12 @@ type ProjectPerformanceMetric struct {
 	ProjectCreatedAt   pgtype.Timestamptz `db:"project_created_at" json:"project_created_at"`
 }
 
-type RefreshTokenBlacklist struct {
-	Jti           string             `db:"jti" json:"jti"`
-	UserID        uuid.UUID          `db:"user_id" json:"user_id"`
-	ExpiresAt     pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
-	BlacklistedAt pgtype.Timestamptz `db:"blacklisted_at" json:"blacklisted_at"`
-	Reason        pgtype.Text        `db:"reason" json:"reason"`
+type RefreshTokenDenylist struct {
+	Jti          string             `db:"jti" json:"jti"`
+	UserID       uuid.UUID          `db:"user_id" json:"user_id"`
+	ExpiresAt    pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	DenylistedAt pgtype.Timestamptz `db:"denylisted_at" json:"denylisted_at"`
+	Reason       pgtype.Text        `db:"reason" json:"reason"`
 }
 
 type ScheduledDeletion struct {

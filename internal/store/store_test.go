@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/garnizeh/englog/internal/config"
 	"github.com/garnizeh/englog/internal/database"
 	"github.com/garnizeh/englog/internal/store"
 	"github.com/google/uuid"
@@ -140,18 +141,18 @@ func testAuthParams(t *testing.T) {
 	err := expiresAt.Scan(time.Now().Add(24 * time.Hour))
 	require.NoError(t, err)
 
-	blacklistParams := store.AddTokenToBlacklistParams{
+	denylistParams := store.CreateRefreshTokenDenylistParams{
 		Jti:       tokenJTI,
 		UserID:    userID,
 		ExpiresAt: expiresAt,
-		Reason:    reason,
+		Column4:   reason,
 	}
 
-	require.Equal(t, tokenJTI, blacklistParams.Jti)
-	require.Equal(t, userID, blacklistParams.UserID)
-	require.NotNil(t, blacklistParams.Reason)
-	require.Equal(t, reason, blacklistParams.Reason)
-	require.True(t, blacklistParams.ExpiresAt.Valid)
+	require.Equal(t, tokenJTI, denylistParams.Jti)
+	require.Equal(t, userID, denylistParams.UserID)
+	require.NotNil(t, denylistParams.Column4)
+	require.Equal(t, reason, denylistParams.Column4)
+	require.True(t, denylistParams.ExpiresAt.Valid)
 }
 
 // TestModelValidation ensures that generated models have correct field types
@@ -354,7 +355,7 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup database connection
-	config := database.Config{
+	config := config.DBConfig{
 		User:          "testuser",
 		Password:      "testpass",
 		HostReadWrite: host + ":" + port.Port(),
@@ -586,30 +587,30 @@ func testUserAuthentication(db *database.DB) func(*testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Test token blacklisting
+		// Test token denylisting
 		tokenJTI := uuid.New().String()
 		err = db.Write(ctx, func(queries *store.Queries) error {
-			return queries.AddTokenToBlacklist(ctx, store.AddTokenToBlacklistParams{
+			return queries.CreateRefreshTokenDenylist(ctx, store.CreateRefreshTokenDenylistParams{
 				Jti:       tokenJTI,
 				UserID:    userID,
 				ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(24 * time.Hour), Valid: true},
-				Reason:    pgtype.Text{String: "logout", Valid: true},
+				Column4:   "logout",
 			})
 		})
 		require.NoError(t, err)
 
-		// Test token blacklist check
-		var isBlacklisted bool
+		// Test token denylist check
+		var isDenylisted bool
 		err = db.Read(ctx, func(queries *store.Queries) error {
-			result, err := queries.IsTokenBlacklisted(ctx, tokenJTI)
+			result, err := queries.IsRefreshTokenDenylisted(ctx, tokenJTI)
 			if err != nil {
 				return err
 			}
-			isBlacklisted = result
+			isDenylisted = result
 			return nil
 		})
 		require.NoError(t, err)
-		require.True(t, isBlacklisted)
+		require.True(t, isDenylisted)
 	}
 }
 

@@ -1,11 +1,11 @@
 -- +goose Up
 -- +goose StatementBegin
--- Refresh token blacklist for JWT security
-CREATE TABLE IF NOT EXISTS refresh_token_blacklist (
+-- Refresh token denylist for JWT security
+CREATE TABLE IF NOT EXISTS refresh_token_denylist (
     jti VARCHAR(255) PRIMARY KEY, -- JWT ID claim
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    blacklisted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    denylisted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     reason VARCHAR(100) DEFAULT 'logout' -- logout, revoked, expired, etc.
 );
 
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS scheduled_deletions (
 );
 
 -- Indexes for performance
-CREATE INDEX IF NOT EXISTS idx_refresh_blacklist_user ON refresh_token_blacklist(user_id);
-CREATE INDEX IF NOT EXISTS idx_refresh_blacklist_expires ON refresh_token_blacklist(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_denylist_user ON refresh_token_denylist(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_denylist_expires ON refresh_token_denylist(expires_at);
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
@@ -53,7 +53,7 @@ RETURNS INTEGER AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    DELETE FROM refresh_token_blacklist
+    DELETE FROM refresh_token_denylist
     WHERE expires_at < NOW() - INTERVAL '7 days';
 
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
@@ -76,9 +76,9 @@ DROP INDEX IF EXISTS idx_scheduled_deletions_user;
 DROP INDEX IF EXISTS idx_user_sessions_active;
 DROP INDEX IF EXISTS idx_user_sessions_expires;
 DROP INDEX IF EXISTS idx_user_sessions_user;
-DROP INDEX IF EXISTS idx_refresh_blacklist_expires;
-DROP INDEX IF EXISTS idx_refresh_blacklist_user;
+DROP INDEX IF EXISTS idx_refresh_denylist_expires;
+DROP INDEX IF EXISTS idx_refresh_denylist_user;
 DROP TABLE IF EXISTS scheduled_deletions CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
-DROP TABLE IF EXISTS refresh_token_blacklist CASCADE;
+DROP TABLE IF EXISTS refresh_token_denylist CASCADE;
 -- +goose StatementEnd

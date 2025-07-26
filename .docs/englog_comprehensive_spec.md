@@ -358,14 +358,14 @@ CREATE TABLE user_sessions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Refresh token blacklist for JWT security
-CREATE TABLE refresh_token_blacklist (
+-- Refresh token denylist for JWT security
+CREATE TABLE refresh_token_denylist (
     jti VARCHAR(255) PRIMARY KEY,
-    blacklisted_at TIMESTAMP DEFAULT NOW()
+    denylisted_at TIMESTAMP DEFAULT NOW()
 );
 
--- Add index for efficient blacklist lookups
-CREATE INDEX idx_refresh_token_blacklist_time ON refresh_token_blacklist(blacklisted_at);
+-- Add index for efficient denylist lookups
+CREATE INDEX idx_refresh_token_denylist_time ON refresh_token_denylist(denylisted_at);
 
 -- Add TTL-like cleanup (optional, can be done via cron job)
 -- This is a PostgreSQL specific approach using a trigger or scheduled job
@@ -573,23 +573,23 @@ WHERE created_at > $1;
 
 #### Refresh Token Blacklist Queries (queries/auth.sql)
 ```sql
--- name: CreateRefreshTokenBlacklist :exec
-INSERT INTO refresh_token_blacklist (jti, blacklisted_at)
+-- name: CreateRefreshTokenDenylist :exec
+INSERT INTO refresh_token_denylist (jti, denylisted_at)
 VALUES ($1, NOW());
 
--- name: IsRefreshTokenBlacklisted :one
+-- name: IsRefreshTokenDenylisted :one
 SELECT EXISTS(
-    SELECT 1 FROM refresh_token_blacklist
+    SELECT 1 FROM refresh_token_denylist
     WHERE jti = $1
 ) as exists;
 
--- name: CleanupExpiredBlacklistedTokens :exec
-DELETE FROM refresh_token_blacklist
-WHERE blacklisted_at < NOW() - INTERVAL '30 days';
+-- name: CleanupExpiredDenylistedTokens :exec
+DELETE FROM refresh_token_denylist
+WHERE denylisted_at < NOW() - INTERVAL '30 days';
 
--- name: GetBlacklistedTokenCount :one
+-- name: GetDenylistedTokenCount :one
 SELECT COUNT(*) as count
-FROM refresh_token_blacklist;
+FROM refresh_token_denylist;
 ```
 
 #### Analytics & Metrics Queries (queries/analytics.sql)
@@ -620,12 +620,12 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;
 
--- name: CreateRefreshTokenBlacklist :exec
-INSERT INTO refresh_token_blacklist (jti, created_at)
+-- name: CreateRefreshTokenDenylist :exec
+INSERT INTO refresh_token_denylist (jti, created_at)
 VALUES ($1, NOW());
 
--- name: IsRefreshTokenBlacklisted :one
-SELECT EXISTS(SELECT 1 FROM refresh_token_blacklist WHERE jti = $1);
+-- name: IsRefreshTokenDenylisted :one
+SELECT EXISTS(SELECT 1 FROM refresh_token_denylist WHERE jti = $1);
 ```
 
 #### Insights & Analytics Queries (queries/insights.sql)
@@ -937,7 +937,7 @@ erDiagram
         timestamp created_at
     }
 
-    REFRESH_TOKEN_BLACKLIST {
+    REFRESH_TOKEN_DENYLIST {
         string jti PK
         timestamp created_at
     }
@@ -2950,10 +2950,10 @@ func (a *AuthService) ValidateToken(tokenString string) (*Claims, error) {
         return nil, ErrInvalidToken
     }
 
-    // Check if refresh token is blacklisted
+    // Check if refresh token is denylisted
     if claims.TokenType == "refresh" {
-        if blacklisted, err := a.isRefreshTokenBlacklisted(claims.JTI); err != nil || blacklisted {
-            return nil, ErrTokenBlacklisted
+        if denylisted, err := a.isRefreshTokenDenylisted(claims.JTI); err != nil || denylisted {
+            return nil, ErrTokenDenylisted
         }
     }
 
@@ -2979,12 +2979,12 @@ func generateJTI() (string, error) {
 }
 
 func (a *AuthService) invalidateRefreshToken(jti string) error {
-    // Add to blacklist table using sqlc
-    return a.queries.CreateRefreshTokenBlacklist(context.Background(), jti)
+    // Add to denylist table using sqlc
+    return a.queries.CreateRefreshTokenDenylist(context.Background(), jti)
 }
 
-func (a *AuthService) isRefreshTokenBlacklisted(jti string) (bool, error) {
-    exists, err := a.queries.IsRefreshTokenBlacklisted(context.Background(), jti)
+func (a *AuthService) isRefreshTokenDenylisted(jti string) (bool, error) {
+    exists, err := a.queries.IsRefreshTokenDenylisted(context.Background(), jti)
     return exists, err
 }
 
