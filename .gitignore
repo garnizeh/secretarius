@@ -132,11 +132,6 @@ docker-compose.local.yml
 # Node modules (if using frontend tooling)
 node_modules/
 
-# Ollama models (too large for git)
-models/
-*.gguf
-*.ggml
-
 # Test artifacts
 testdata/output/
 test-results/
