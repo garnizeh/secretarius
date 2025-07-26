@@ -57,10 +57,10 @@ type CreateInsightParams struct {
 	PeriodEnd            pgtype.Date    `db:"period_end" json:"period_end"`
 	Title                string         `db:"title" json:"title"`
 	Content              string         `db:"content" json:"content"`
-	Summary              *string        `db:"summary" json:"summary"`
+	Summary              pgtype.Text    `db:"summary" json:"summary"`
 	Metadata             []byte         `db:"metadata" json:"metadata"`
-	GenerationModel      *string        `db:"generation_model" json:"generation_model"`
-	GenerationDurationMs *int32         `db:"generation_duration_ms" json:"generation_duration_ms"`
+	GenerationModel      pgtype.Text    `db:"generation_model" json:"generation_model"`
+	GenerationDurationMs pgtype.Int4    `db:"generation_duration_ms" json:"generation_duration_ms"`
 	QualityScore         pgtype.Numeric `db:"quality_score" json:"quality_score"`
 }
 
@@ -496,12 +496,12 @@ RETURNING id, user_id, report_type, period_start, period_end, title, content, su
 `
 
 type UpdateInsightParams struct {
-	ID       uuid.UUID `db:"id" json:"id"`
-	Title    string    `db:"title" json:"title"`
-	Content  string    `db:"content" json:"content"`
-	Summary  *string   `db:"summary" json:"summary"`
-	Metadata []byte    `db:"metadata" json:"metadata"`
-	UserID   uuid.UUID `db:"user_id" json:"user_id"`
+	ID       uuid.UUID   `db:"id" json:"id"`
+	Title    string      `db:"title" json:"title"`
+	Content  string      `db:"content" json:"content"`
+	Summary  pgtype.Text `db:"summary" json:"summary"`
+	Metadata []byte      `db:"metadata" json:"metadata"`
+	UserID   uuid.UUID   `db:"user_id" json:"user_id"`
 }
 
 func (q *Queries) UpdateInsight(ctx context.Context, arg UpdateInsightParams) (GeneratedInsight, error) {

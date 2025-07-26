@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/garnizeh/englog/internal/store"
+	"github.com/garnizeh/englog/internal/database"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,7 +26,7 @@ func main() {
 	ctx := context.Background()
 
 	// Database connection setup
-	db, err := store.NewDB(ctx, store.Config{
+	db, err := database.NewDB(ctx, database.Config{
 		User:          os.Getenv("DB_USER"),
 		Password:      os.Getenv("DB_PASSWORD"),
 		HostReadWrite: os.Getenv("DB_HOST_READ_WRITE"),

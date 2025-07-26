@@ -23,7 +23,7 @@ type AddTokenToBlacklistParams struct {
 	Jti       string             `db:"jti" json:"jti"`
 	UserID    uuid.UUID          `db:"user_id" json:"user_id"`
 	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
-	Reason    *string            `db:"reason" json:"reason"`
+	Reason    pgtype.Text        `db:"reason" json:"reason"`
 }
 
 // EngLog Authentication Queries
@@ -89,7 +89,7 @@ type CreateUserSessionParams struct {
 	RefreshTokenHash string             `db:"refresh_token_hash" json:"refresh_token_hash"`
 	ExpiresAt        pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	IpAddress        *netip.Addr        `db:"ip_address" json:"ip_address"`
-	UserAgent        *string            `db:"user_agent" json:"user_agent"`
+	UserAgent        pgtype.Text        `db:"user_agent" json:"user_agent"`
 }
 
 func (q *Queries) CreateUserSession(ctx context.Context, arg CreateUserSessionParams) (UserSession, error) {
@@ -394,8 +394,8 @@ WHERE id = $1
 `
 
 type UpdateDeletionStatusParams struct {
-	ID     uuid.UUID `db:"id" json:"id"`
-	Status *string   `db:"status" json:"status"`
+	ID     uuid.UUID   `db:"id" json:"id"`
+	Status pgtype.Text `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateDeletionStatus(ctx context.Context, arg UpdateDeletionStatusParams) error {

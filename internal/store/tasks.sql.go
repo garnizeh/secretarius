@@ -85,8 +85,8 @@ type CreateTaskParams struct {
 	TaskType    string             `db:"task_type" json:"task_type"`
 	UserID      pgtype.UUID        `db:"user_id" json:"user_id"`
 	Payload     []byte             `db:"payload" json:"payload"`
-	Priority    *int32             `db:"priority" json:"priority"`
-	MaxRetries  *int32             `db:"max_retries" json:"max_retries"`
+	Priority    pgtype.Int4        `db:"priority" json:"priority"`
+	MaxRetries  pgtype.Int4        `db:"max_retries" json:"max_retries"`
 	ScheduledAt pgtype.Timestamptz `db:"scheduled_at" json:"scheduled_at"`
 }
 
@@ -141,8 +141,8 @@ RETURNING id, task_type, user_id, payload, status, priority, max_retries, retry_
 `
 
 type FailTaskParams struct {
-	ID           uuid.UUID `db:"id" json:"id"`
-	ErrorMessage *string   `db:"error_message" json:"error_message"`
+	ID           uuid.UUID   `db:"id" json:"id"`
+	ErrorMessage pgtype.Text `db:"error_message" json:"error_message"`
 }
 
 func (q *Queries) FailTask(ctx context.Context, arg FailTaskParams) (Task, error) {
@@ -350,10 +350,10 @@ ORDER BY task_type, status
 `
 
 type GetTaskQueueRow struct {
-	TaskType           string  `db:"task_type" json:"task_type"`
-	Status             *string `db:"status" json:"status"`
-	TaskCount          int64   `db:"task_count" json:"task_count"`
-	AvgWaitTimeSeconds float64 `db:"avg_wait_time_seconds" json:"avg_wait_time_seconds"`
+	TaskType           string      `db:"task_type" json:"task_type"`
+	Status             pgtype.Text `db:"status" json:"status"`
+	TaskCount          int64       `db:"task_count" json:"task_count"`
+	AvgWaitTimeSeconds float64     `db:"avg_wait_time_seconds" json:"avg_wait_time_seconds"`
 }
 
 func (q *Queries) GetTaskQueue(ctx context.Context) ([]GetTaskQueueRow, error) {
@@ -609,8 +609,8 @@ RETURNING id, task_type, user_id, payload, status, priority, max_retries, retry_
 `
 
 type UpdateTaskStatusParams struct {
-	ID     uuid.UUID `db:"id" json:"id"`
-	Status *string   `db:"status" json:"status"`
+	ID     uuid.UUID   `db:"id" json:"id"`
+	Status pgtype.Text `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateTaskStatus(ctx context.Context, arg UpdateTaskStatusParams) (Task, error) {

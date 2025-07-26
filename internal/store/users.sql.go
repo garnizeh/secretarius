@@ -22,12 +22,12 @@ INSERT INTO users (
 `
 
 type CreateUserParams struct {
-	Email        string  `db:"email" json:"email"`
-	PasswordHash string  `db:"password_hash" json:"password_hash"`
-	FirstName    string  `db:"first_name" json:"first_name"`
-	LastName     string  `db:"last_name" json:"last_name"`
-	Timezone     *string `db:"timezone" json:"timezone"`
-	Preferences  []byte  `db:"preferences" json:"preferences"`
+	Email        string      `db:"email" json:"email"`
+	PasswordHash string      `db:"password_hash" json:"password_hash"`
+	FirstName    string      `db:"first_name" json:"first_name"`
+	LastName     string      `db:"last_name" json:"last_name"`
+	Timezone     pgtype.Text `db:"timezone" json:"timezone"`
+	Preferences  []byte      `db:"preferences" json:"preferences"`
 }
 
 // EngLog User Management Queries
@@ -201,11 +201,11 @@ RETURNING id, email, password_hash, first_name, last_name, timezone, preferences
 `
 
 type UpdateUserProfileParams struct {
-	ID          uuid.UUID `db:"id" json:"id"`
-	FirstName   string    `db:"first_name" json:"first_name"`
-	LastName    string    `db:"last_name" json:"last_name"`
-	Timezone    *string   `db:"timezone" json:"timezone"`
-	Preferences []byte    `db:"preferences" json:"preferences"`
+	ID          uuid.UUID   `db:"id" json:"id"`
+	FirstName   string      `db:"first_name" json:"first_name"`
+	LastName    string      `db:"last_name" json:"last_name"`
+	Timezone    pgtype.Text `db:"timezone" json:"timezone"`
+	Preferences []byte      `db:"preferences" json:"preferences"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
