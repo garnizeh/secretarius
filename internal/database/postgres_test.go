@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/garnizeh/englog/internal/config"
 	"github.com/garnizeh/englog/internal/database"
 	"github.com/garnizeh/englog/internal/store"
 	"github.com/google/uuid"
@@ -48,7 +49,7 @@ func TestNewDB(t *testing.T) {
 	hostPort := host + ":" + port.Port()
 
 	t.Run("SuccessfulConnection", func(t *testing.T) {
-		config := database.Config{
+		config := config.DBConfig{
 			User:          "testuser",
 			Password:      "testpass",
 			HostReadWrite: hostPort,
@@ -68,7 +69,7 @@ func TestNewDB(t *testing.T) {
 	})
 
 	t.Run("InvalidConnectionParams", func(t *testing.T) {
-		config := database.Config{
+		config := config.DBConfig{
 			User:          "invaliduser",
 			Password:      "invalidpass",
 			HostReadWrite: "invalid:5432",
@@ -83,7 +84,7 @@ func TestNewDB(t *testing.T) {
 	})
 
 	t.Run("WithCustomSchema", func(t *testing.T) {
-		config := database.Config{
+		config := config.DBConfig{
 			User:          "testuser",
 			Password:      "testpass",
 			HostReadWrite: hostPort,
@@ -462,7 +463,7 @@ func setupTestDB(t *testing.T) *database.DB {
 
 	hostPort := host + ":" + port.Port()
 
-	config := database.Config{
+	config := config.DBConfig{
 		User:          "testuser",
 		Password:      "testpass",
 		HostReadWrite: hostPort,
@@ -594,7 +595,7 @@ func setupBenchmarkDB(b *testing.B) *database.DB {
 
 	hostPort := host + ":" + port.Port()
 
-	config := database.Config{
+	config := config.DBConfig{
 		User:          "benchuser",
 		Password:      "benchpass",
 		HostReadWrite: hostPort,

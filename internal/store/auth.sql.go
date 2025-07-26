@@ -13,31 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addTokenToBlacklist = `-- name: AddTokenToBlacklist :exec
-
-INSERT INTO refresh_token_blacklist (jti, user_id, expires_at, reason)
-VALUES ($1, $2, $3, $4)
-`
-
-type AddTokenToBlacklistParams struct {
-	Jti       string             `db:"jti" json:"jti"`
-	UserID    uuid.UUID          `db:"user_id" json:"user_id"`
-	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
-	Reason    pgtype.Text        `db:"reason" json:"reason"`
-}
-
-// EngLog Authentication Queries
-// JWT token management and session handling
-func (q *Queries) AddTokenToBlacklist(ctx context.Context, arg AddTokenToBlacklistParams) error {
-	_, err := q.db.Exec(ctx, addTokenToBlacklist,
-		arg.Jti,
-		arg.UserID,
-		arg.ExpiresAt,
-		arg.Reason,
-	)
-	return err
-}
-
 const cancelDeletionRequest = `-- name: CancelDeletionRequest :exec
 UPDATE scheduled_deletions
 SET status = 'cancelled'
@@ -54,6 +29,16 @@ func (q *Queries) CancelDeletionRequest(ctx context.Context, arg CancelDeletionR
 	return err
 }
 
+const cleanupExpiredDenylistedTokens = `-- name: CleanupExpiredDenylistedTokens :exec
+DELETE FROM refresh_token_denylist
+WHERE expires_at < NOW() - INTERVAL '7 days'
+`
+
+func (q *Queries) CleanupExpiredDenylistedTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, cleanupExpiredDenylistedTokens)
+	return err
+}
+
 const cleanupExpiredSessions = `-- name: CleanupExpiredSessions :exec
 DELETE FROM user_sessions
 WHERE expires_at < NOW()
@@ -64,13 +49,28 @@ func (q *Queries) CleanupExpiredSessions(ctx context.Context) error {
 	return err
 }
 
-const cleanupExpiredTokens = `-- name: CleanupExpiredTokens :exec
-DELETE FROM refresh_token_blacklist
-WHERE expires_at < NOW() - INTERVAL '7 days'
+const createRefreshTokenDenylist = `-- name: CreateRefreshTokenDenylist :exec
+
+INSERT INTO refresh_token_denylist (jti, user_id, expires_at, reason)
+VALUES ($1, $2, $3, COALESCE($4, 'logout'))
 `
 
-func (q *Queries) CleanupExpiredTokens(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, cleanupExpiredTokens)
+type CreateRefreshTokenDenylistParams struct {
+	Jti       string             `db:"jti" json:"jti"`
+	UserID    uuid.UUID          `db:"user_id" json:"user_id"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	Column4   interface{}        `db:"column_4" json:"column_4"`
+}
+
+// EngLog Authentication Queries
+// JWT token management and session handling
+func (q *Queries) CreateRefreshTokenDenylist(ctx context.Context, arg CreateRefreshTokenDenylistParams) error {
+	_, err := q.db.Exec(ctx, createRefreshTokenDenylist,
+		arg.Jti,
+		arg.UserID,
+		arg.ExpiresAt,
+		arg.Column4,
+	)
 	return err
 }
 
@@ -176,26 +176,26 @@ func (q *Queries) GetActiveSessionsByUser(ctx context.Context, userID uuid.UUID)
 	return items, nil
 }
 
-const getBlacklistedTokensByUser = `-- name: GetBlacklistedTokensByUser :many
-SELECT jti, user_id, expires_at, blacklisted_at, reason FROM refresh_token_blacklist
+const getDenylistedTokensByUser = `-- name: GetDenylistedTokensByUser :many
+SELECT jti, user_id, expires_at, denylisted_at, reason FROM refresh_token_denylist
 WHERE user_id = $1
-ORDER BY blacklisted_at DESC
+ORDER BY denylisted_at DESC
 `
 
-func (q *Queries) GetBlacklistedTokensByUser(ctx context.Context, userID uuid.UUID) ([]RefreshTokenBlacklist, error) {
-	rows, err := q.db.Query(ctx, getBlacklistedTokensByUser, userID)
+func (q *Queries) GetDenylistedTokensByUser(ctx context.Context, userID uuid.UUID) ([]RefreshTokenDenylist, error) {
+	rows, err := q.db.Query(ctx, getDenylistedTokensByUser, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []RefreshTokenBlacklist{}
+	items := []RefreshTokenDenylist{}
 	for rows.Next() {
-		var i RefreshTokenBlacklist
+		var i RefreshTokenDenylist
 		if err := rows.Scan(
 			&i.Jti,
 			&i.UserID,
 			&i.ExpiresAt,
-			&i.BlacklistedAt,
+			&i.DenylistedAt,
 			&i.Reason,
 		); err != nil {
 			return nil, err
@@ -337,15 +337,15 @@ func (q *Queries) GetUserSessionByToken(ctx context.Context, sessionTokenHash st
 	return i, err
 }
 
-const isTokenBlacklisted = `-- name: IsTokenBlacklisted :one
+const isRefreshTokenDenylisted = `-- name: IsRefreshTokenDenylisted :one
 SELECT EXISTS(
-    SELECT 1 FROM refresh_token_blacklist
+    SELECT 1 FROM refresh_token_denylist
     WHERE jti = $1
 )
 `
 
-func (q *Queries) IsTokenBlacklisted(ctx context.Context, jti string) (bool, error) {
-	row := q.db.QueryRow(ctx, isTokenBlacklisted, jti)
+func (q *Queries) IsRefreshTokenDenylisted(ctx context.Context, jti string) (bool, error) {
+	row := q.db.QueryRow(ctx, isRefreshTokenDenylisted, jti)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err

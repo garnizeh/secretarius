@@ -70,7 +70,7 @@ Client Request → API Server → gRPC → Worker Server → Ollama → Database
 ### Authentication
 - JWT tokens with refresh mechanism
 - Rate limiting per user
-- Session blacklisting support
+- Session denylist support
 
 ### Data Protection
 - TLS encryption for all communications

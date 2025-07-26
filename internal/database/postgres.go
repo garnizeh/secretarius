@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/garnizeh/englog/internal/config"
 	"github.com/garnizeh/englog/internal/sqlc"
 	"github.com/garnizeh/englog/internal/store"
 	"github.com/jackc/pgx/v5"
@@ -30,23 +31,12 @@ type DB struct {
 	wrdb *pgxpool.Pool
 }
 
-// Config is the required properties to use the database.
-type Config struct {
-	User          string
-	Password      string
-	HostReadWrite string
-	HostReadOnly  string
-	host          string
-	Name          string
-	Schema        string
-}
-
 // NewDB creates a new database connection pool and runs the migrations.
 func NewDB(
 	ctx context.Context,
-	config Config,
+	config config.DBConfig,
 ) (*DB, error) {
-	config.host = config.HostReadWrite
+	config.Host = config.HostReadWrite
 
 	// Migrate the database
 	if err := migrate(ctx, sqlc.Migrations, config); err != nil {
@@ -59,7 +49,7 @@ func NewDB(
 		return nil, fmt.Errorf("error setting up read write database connection: %w", err)
 	}
 
-	config.host = config.HostReadOnly
+	config.Host = config.HostReadOnly
 	dbRO, err := setupDBConn(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up read only database connection: %w", err)
@@ -181,7 +171,7 @@ func (db *DB) transaction(
 func migrate(
 	ctx context.Context,
 	migrations embed.FS,
-	config Config,
+	config config.DBConfig,
 ) error {
 	// We need to create the schema before running the migrations.
 	// This is because the migrations are run in the context of the schema.
@@ -197,7 +187,7 @@ func migrate(
 
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?application_name=anti-fraud-operation-manager&search_path=%s,public&connect_timeout=10",
-		config.User, config.Password, config.host, config.Name, config.Schema,
+		config.User, config.Password, config.Host, config.Name, config.Schema,
 	)
 
 	cfg, err := pgx.ParseConfig(dsn)
@@ -220,7 +210,7 @@ func migrate(
 func createSchema(
 	ctx context.Context,
 	migrations embed.FS,
-	config Config,
+	config config.DBConfig,
 ) error {
 	goose.SetBaseFS(migrations)
 	if err := goose.SetDialect("postgres"); err != nil {
@@ -229,7 +219,7 @@ func createSchema(
 
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?application_name=anti-fraud-operation-manager&connect_timeout=10",
-		config.User, config.Password, config.host, config.Name,
+		config.User, config.Password, config.Host, config.Name,
 	)
 
 	conn, err := pgx.Connect(ctx, dsn)
@@ -267,7 +257,7 @@ func isSerializationError(err error) bool {
 	return true
 }
 
-func setupDBConn(ctx context.Context, config Config) (*pgxpool.Pool, error) {
+func setupDBConn(ctx context.Context, config config.DBConfig) (*pgxpool.Pool, error) {
 	poolConfig, err := toPoolConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("error creating pool config: %w", err)
@@ -285,10 +275,10 @@ func setupDBConn(ctx context.Context, config Config) (*pgxpool.Pool, error) {
 }
 
 // toPoolConfig converts the DBInfo struct to a pgxpool.Config struct.
-func toPoolConfig(config Config) (*pgxpool.Config, error) {
+func toPoolConfig(config config.DBConfig) (*pgxpool.Config, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?application_name=anti-fraud-operation-manager&search_path=%s,public",
-		config.User, config.Password, config.host, config.Name, config.Schema,
+		config.User, config.Password, config.Host, config.Name, config.Schema,
 	)
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)

@@ -22,13 +22,13 @@ type AuthTokens struct {
 	TokenType    string `json:"token_type"` // "Bearer"
 }
 
-// RefreshTokenBlacklist represents a blacklisted refresh token
-type RefreshTokenBlacklist struct {
-	JTI           string    `json:"jti" db:"jti"`
-	UserID        uuid.UUID `json:"user_id" db:"user_id"`
-	ExpiresAt     time.Time `json:"expires_at" db:"expires_at"`
-	BlacklistedAt time.Time `json:"blacklisted_at" db:"blacklisted_at"`
-	Reason        string    `json:"reason" db:"reason"`
+// RefreshTokenDenylist represents a denylisted refresh token
+type RefreshTokenDenylist struct {
+	JTI          string    `json:"jti" db:"jti"`
+	UserID       uuid.UUID `json:"user_id" db:"user_id"`
+	ExpiresAt    time.Time `json:"expires_at" db:"expires_at"`
+	DenylistedAt time.Time `json:"denylisted_at" db:"denylisted_at"`
+	Reason       string    `json:"reason" db:"reason"`
 }
 
 // UserSession represents an active user session

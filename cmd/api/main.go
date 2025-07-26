@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/garnizeh/englog/internal/auth"
+	"github.com/garnizeh/englog/internal/config"
 	"github.com/garnizeh/englog/internal/database"
 	"github.com/gin-gonic/gin"
 )
@@ -25,15 +27,12 @@ func main() {
 
 	ctx := context.Background()
 
+	// Load configuration
+	dbConfig := config.LoadDBConfig()
+	authConfig := config.LoadAuthConfig()
+
 	// Database connection setup
-	db, err := database.NewDB(ctx, database.Config{
-		User:          os.Getenv("DB_USER"),
-		Password:      os.Getenv("DB_PASSWORD"),
-		HostReadWrite: os.Getenv("DB_HOST_READ_WRITE"),
-		HostReadOnly:  os.Getenv("DB_HOST_READ_ONLY"),
-		Name:          os.Getenv("DB_NAME"),
-		Schema:        os.Getenv("DB_SCHEMA"),
-	})
+	db, err := database.NewDB(ctx, dbConfig)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
@@ -45,6 +44,14 @@ func main() {
 	if err := db.Check(ctx); err != nil {
 		panic(fmt.Sprintf("Failed to check database connection: %v", err))
 	}
+
+	// Initialize authentication service
+	authService := auth.NewAuthService(db.RDBMS(), authConfig.JWTSecretKey)
+
+	// Start token cleanup background process
+	cleanupCtx, cleanupCancel := context.WithCancel(ctx)
+	defer cleanupCancel()
+	go authService.StartTokenCleanup(cleanupCtx)
 
 	// Set Gin mode based on environment
 	if os.Getenv("APP_ENV") == "production" {
@@ -73,6 +80,23 @@ func main() {
 		})
 	})
 
+	// Authentication routes
+	authRoutes := router.Group("/api/v1/auth")
+	{
+		authRoutes.POST("/register", authService.RegisterHandler)
+		authRoutes.POST("/login", authService.LoginHandler)
+		authRoutes.POST("/refresh", authService.RefreshHandler)
+		authRoutes.POST("/logout", authService.LogoutHandler)
+	}
+
+	// Protected routes
+	apiRoutes := router.Group("/api/v1")
+	apiRoutes.Use(authService.RequireAuth())
+	{
+		apiRoutes.GET("/me", authService.MeHandler)
+		// Add other protected routes here as needed
+	}
+
 	// Get port from environment or use default
 	port := os.Getenv("APP_PORT")
 	if port == "" {
@@ -99,11 +123,14 @@ func main() {
 	<-quit
 	fmt.Println("\n🛑 Shutting down server...")
 
+	// Cancel cleanup process
+	cleanupCancel()
+
 	// Give outstanding requests 30 seconds to complete
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
 

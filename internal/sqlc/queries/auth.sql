@@ -1,24 +1,24 @@
 -- EngLog Authentication Queries
 -- JWT token management and session handling
 
--- name: AddTokenToBlacklist :exec
-INSERT INTO refresh_token_blacklist (jti, user_id, expires_at, reason)
-VALUES ($1, $2, $3, $4);
+-- name: CreateRefreshTokenDenylist :exec
+INSERT INTO refresh_token_denylist (jti, user_id, expires_at, reason)
+VALUES ($1, $2, $3, COALESCE($4, 'logout'));
 
--- name: IsTokenBlacklisted :one
+-- name: IsRefreshTokenDenylisted :one
 SELECT EXISTS(
-    SELECT 1 FROM refresh_token_blacklist
+    SELECT 1 FROM refresh_token_denylist
     WHERE jti = $1
 );
 
--- name: CleanupExpiredTokens :exec
-DELETE FROM refresh_token_blacklist
+-- name: CleanupExpiredDenylistedTokens :exec
+DELETE FROM refresh_token_denylist
 WHERE expires_at < NOW() - INTERVAL '7 days';
 
--- name: GetBlacklistedTokensByUser :many
-SELECT * FROM refresh_token_blacklist
+-- name: GetDenylistedTokensByUser :many
+SELECT * FROM refresh_token_denylist
 WHERE user_id = $1
-ORDER BY blacklisted_at DESC;
+ORDER BY denylisted_at DESC;
 
 -- name: CreateUserSession :one
 INSERT INTO user_sessions (
