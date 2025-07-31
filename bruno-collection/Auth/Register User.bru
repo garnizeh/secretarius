@@ -1,0 +1,38 @@
+meta {
+  name: Register User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "user@example.com",
+    "password": "securePassword123",
+    "first_name": "John",
+    "last_name": "Doe",
+    "timezone": "UTC"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("access_token", res.body.tokens.access_token);
+    bru.setEnvVar("refresh_token", res.body.tokens.refresh_token);
+  }
+}
+
+tests {
+  test("should register user successfully", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.user).to.have.property('id');
+    expect(res.body.user).to.have.property('email');
+    expect(res.body.tokens).to.have.property('access_token');
+    expect(res.body.tokens).to.have.property('refresh_token');
+  });
+}

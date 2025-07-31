@@ -1,0 +1,129 @@
+{
+    # Global options
+    email {$ACME_EMAIL:admin@yourdomain.com}
+
+    # Enable experimental features
+    experimental_http3
+
+    # Security settings
+    servers {
+        protocols h1 h2 h3
+    }
+}
+
+# Main site configuration
+{$DOMAIN_NAME:localhost} {
+    # Rate limiting
+    rate_limit {
+        zone static_ip {
+            key {remote_host}
+            window 1m
+            events 100
+        }
+
+        zone auth_ip {
+            key {remote_host}
+            window 1m
+            events 5
+        }
+    }
+
+    # Security headers
+    header {
+        # Security headers
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer-when-downgrade"
+        Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'"
+
+        # Remove server information
+        -Server
+
+        # HSTS (uncomment for production with valid certificates)
+        # Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    # Gzip compression
+    encode {
+        gzip 9
+        minimum_length 1024
+        match {
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xml*
+        }
+    }
+
+    # API endpoints with rate limiting
+    @api path /v1/*
+    handle @api {
+        rate_limit static_ip
+        reverse_proxy api-server:8080 {
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+
+    # Authentication endpoints with stricter rate limiting
+    @auth path /v1/auth/*
+    handle @auth {
+        rate_limit auth_ip
+        reverse_proxy api-server:8080 {
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+
+    # Health check endpoint (no rate limiting)
+    handle /health {
+        reverse_proxy api-server:8080
+        log {
+            output discard
+        }
+    }
+
+    # Metrics endpoint (restricted access)
+    @metrics path /metrics
+    handle @metrics {
+        @private_networks {
+            remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1/8
+        }
+        handle @private_networks {
+            reverse_proxy api-server:8080
+        }
+        handle {
+            respond "Access denied" 403
+        }
+    }
+
+    # Default handler for other paths
+    handle {
+        respond "Not found" 404
+    }
+
+    # Access logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 100mb
+            roll_keep 10
+            roll_keep_for 720h
+        }
+        format json
+    }
+}
+
+# gRPC endpoint for internal communication
+:{$GRPC_PORT:9090} {
+    reverse_proxy api-server:9090 {
+        transport http {
+            versions h2c
+        }
+        health_uri /health
+        health_interval 30s
+        health_timeout 10s
+    }
+}

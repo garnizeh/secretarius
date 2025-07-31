@@ -1,0 +1,82 @@
+services:
+  # Development API Server
+  api-server-dev:
+    build:
+      context: .
+      dockerfile: deployments/api/Dockerfile.dev
+    container_name: englog_api_dev
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    volumes:
+      - .:/app
+      - ./logs/api:/app/logs
+    env_file:
+      - .env.api-dev
+    networks:
+      - dev
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Development Worker
+  worker-dev:
+    build:
+      context: .
+      dockerfile: deployments/worker/Dockerfile.dev
+    container_name: englog_worker_dev
+    env_file:
+      - .env.worker-dev
+    volumes:
+      - .:/app
+      - ./logs/worker:/app/logs
+    networks:
+      - dev
+    depends_on:
+      api-server-dev:
+        condition: service_healthy
+
+  # Development Database
+  postgres-dev:
+    image: postgres:17-alpine
+    container_name: englog_postgres_dev
+    environment:
+      - POSTGRES_DB=englog
+      - POSTGRES_USER=englog
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U englog -d englog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev
+    ports:
+      - "5432:5432"
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: englog_redis_dev
+    networks:
+      - dev
+    ports:
+      - "6379:6379"
+
+networks:
+  dev:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:

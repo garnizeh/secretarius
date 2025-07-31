@@ -1,0 +1,29 @@
+meta {
+  name: Get Tags
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/tags?limit=20&offset=0
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  limit: 20
+  offset: 0
+  ~search:
+}
+
+tests {
+  test("should get tags successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('tags');
+    expect(res.body.tags).to.be.an('array');
+  });
+}

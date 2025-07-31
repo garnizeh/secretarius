@@ -1,0 +1,28 @@
+meta {
+  name: Search Tags
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/v1/tags/search?q=auth
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  q: auth
+  ~limit:
+}
+
+tests {
+  test("should search tags successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('tags');
+    expect(res.body.tags).to.be.an('array');
+  });
+}

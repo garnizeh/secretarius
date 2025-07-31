@@ -1,0 +1,46 @@
+services:
+  # Worker Server (Background Processing)
+  worker-server:
+    build:
+      context: .
+      dockerfile: deployments/worker/Dockerfile
+    container_name: englog_worker_server
+    restart: unless-stopped
+    ports:
+      - "9091:9091"  # gRPC Client Port
+    env_file:
+      - .env.worker-dev
+    volumes:
+      - ./logs/worker:/app/logs
+    networks:
+      - private
+    # Remove dependency on ollama since it's external
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # # Background Job Scheduler (Optional - Cron-like functionality)
+  # scheduler:
+  #   build:
+  #     context: .
+  #     dockerfile: deployments/scheduler/Dockerfile
+  #   container_name: englog_scheduler
+  #   restart: unless-stopped
+  #   environment:
+  #     - ENVIRONMENT=production
+  #     - API_SERVER_GRPC_ADDRESS=${API_SERVER_GRPC_ADDRESS:-api-server:9090}
+  #     - SCHEDULE_WEEKLY_REPORTS=true
+  #     - SCHEDULE_CLEANUP_TASKS=true
+  #   volumes:
+  #     - ./logs/scheduler:/app/logs
+  #   networks:
+  #     - private
+  #   depends_on:
+  #     - worker-server
+
+networks:
+  private:
+    driver: bridge

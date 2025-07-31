@@ -1,0 +1,41 @@
+meta {
+  name: Update Project
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/v1/projects/:id
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:path {
+  id: {{project_id}}
+}
+
+vars {
+  project_id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+body:json {
+  {
+    "name": "englog API - Updated",
+    "description": "Engineering log management API for tracking development activities, projects, and analytics",
+    "repository_url": "https://github.com/garnizeh/englog",
+    "status": "active",
+    "tags": ["go", "api", "postgresql", "jwt"]
+  }
+}
+
+tests {
+  test("should update project successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('id');
+    expect(res.body).to.have.property('name');
+  });
+}

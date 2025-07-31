@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package worker;
+option go_package = "github.com/garnizeh/englog/proto/worker";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// API Server service - provides tasks to workers
+service APIWorkerService {
+  // Worker registration and management
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+  rpc WorkerHeartbeat(WorkerHeartbeatRequest) returns (WorkerHeartbeatResponse);
+
+  // Task streaming - worker receives tasks from API server
+  rpc StreamTasks(StreamTasksRequest) returns (stream TaskRequest);
+
+  // Task result reporting
+  rpc ReportTaskResult(TaskResultRequest) returns (TaskResultResponse);
+  rpc UpdateTaskProgress(TaskProgressRequest) returns (google.protobuf.Empty);
+
+  // Health and monitoring
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+}
+
+// Worker registration messages
+message RegisterWorkerRequest {
+  string worker_id = 1;
+  string worker_name = 2;
+  repeated WorkerCapability capabilities = 3;
+  string version = 4;
+  map<string, string> metadata = 5;
+}
+
+message RegisterWorkerResponse {
+  string session_token = 1;
+  int32 heartbeat_interval_seconds = 2;
+  bool registration_successful = 3;
+  string message = 4;
+}
+
+message WorkerHeartbeatRequest {
+  string worker_id = 1;
+  string session_token = 2;
+  WorkerStatus status = 3;
+  WorkerStats stats = 4;
+}
+
+message WorkerHeartbeatResponse {
+  bool connection_healthy = 1;
+  string message = 2;
+  google.protobuf.Timestamp server_time = 3;
+}
+
+// Task streaming messages
+message StreamTasksRequest {
+  string worker_id = 1;
+  string session_token = 2;
+  repeated WorkerCapability capabilities = 3;
+}
+
+message TaskRequest {
+  string task_id = 1;
+  TaskType task_type = 2;
+  string payload = 3; // JSON-encoded task data
+  int32 priority = 4;
+  google.protobuf.Timestamp deadline = 5;
+  map<string, string> metadata = 6;
+}
+
+// Task result reporting
+message TaskResultRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  TaskStatus status = 3;
+  string result = 4; // JSON-encoded result
+  string error_message = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+}
+
+message TaskResultResponse {
+  bool result_received = 1;
+  string message = 2;
+}
+
+message TaskProgressRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  int32 progress_percent = 3;
+  string status_message = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// AI insight generation messages (called directly by worker)
+message GenerateInsightRequest {
+  string user_id = 1;
+  repeated string entry_ids = 2;
+  InsightType insight_type = 3;
+  string context = 4;
+}
+
+message GenerateInsightResponse {
+  string insight_id = 1;
+  string content = 2;
+  repeated string tags = 3;
+  float confidence_score = 4;
+  google.protobuf.Timestamp generated_at = 5;
+}
+
+message GenerateWeeklyReportRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp week_start = 2;
+  google.protobuf.Timestamp week_end = 3;
+}
+
+message GenerateWeeklyReportResponse {
+  string report_id = 1;
+  string summary = 2;
+  repeated string key_insights = 3;
+  repeated string recommendations = 4;
+  google.protobuf.Timestamp generated_at = 5;
+}
+
+// Health and monitoring messages
+message HealthCheckResponse {
+  string status = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  map<string, string> services = 3; // service_name -> status
+  int32 active_workers = 4;
+}
+
+message WorkerStats {
+  int32 active_tasks = 1;
+  int32 completed_tasks = 2;
+  int32 failed_tasks = 3;
+  float cpu_usage = 4;
+  float memory_usage = 5;
+  google.protobuf.Timestamp uptime = 6;
+  string grpc_connection_status = 7;
+}
+
+// Enums
+enum WorkerCapability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_AI_INSIGHTS = 1;
+  CAPABILITY_WEEKLY_REPORTS = 2;
+  CAPABILITY_DATA_ANALYSIS = 3;
+  CAPABILITY_NOTIFICATIONS = 4;
+}
+
+enum TaskType {
+  TASK_TYPE_UNSPECIFIED = 0;
+  TASK_TYPE_INSIGHT_GENERATION = 1;
+  TASK_TYPE_WEEKLY_REPORT = 2;
+  TASK_TYPE_DATA_ANALYSIS = 3;
+  TASK_TYPE_CLEANUP = 4;
+  TASK_TYPE_NOTIFICATION = 5;
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_CANCELLED = 5;
+}
+
+enum WorkerStatus {
+  WORKER_STATUS_UNSPECIFIED = 0;
+  WORKER_STATUS_IDLE = 1;
+  WORKER_STATUS_BUSY = 2;
+  WORKER_STATUS_UNAVAILABLE = 3;
+  WORKER_STATUS_ERROR = 4;
+}
+
+enum InsightType {
+  INSIGHT_TYPE_UNSPECIFIED = 0;
+  INSIGHT_TYPE_PRODUCTIVITY = 1;
+  INSIGHT_TYPE_PATTERNS = 2;
+  INSIGHT_TYPE_GOALS = 3;
+  INSIGHT_TYPE_MOOD = 4;
+  INSIGHT_TYPE_IMPROVEMENT = 5;
+}

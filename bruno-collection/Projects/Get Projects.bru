@@ -1,0 +1,30 @@
+meta {
+  name: Get Projects
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/projects?limit=10&offset=0
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  limit: 10
+  offset: 0
+  ~status:
+  ~search:
+}
+
+tests {
+  test("should get projects successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('projects');
+    expect(res.body.projects).to.be.an('array');
+  });
+}

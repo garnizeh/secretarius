@@ -1,0 +1,492 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop, almost-ready]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run comprehensive tests nightly at 2 AM UTC
+    - cron: "0 2 * * *"
+
+jobs:
+  # Static analysis and code quality checks
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install code generation tools
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Check code formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Code is not properly formatted. Run 'make format' to fix."
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run linting
+        run: make lint
+
+  # Unit and race condition tests (no external dependencies)
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protobuf tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Run unit tests
+        run: make test-unit
+
+      - name: Run race condition tests
+        run: make test-race
+
+      - name: Generate coverage report
+        run: make test-coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+          name: codecov-umbrella
+          slug: garnizeh/englog
+
+  # Integration tests with database services
+  integration:
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: englog_test
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protobuf tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Run integration tests
+        run: make test-integration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/englog_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+
+  # Security analysis
+  security:
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install security tools
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Run security checks
+        run: make test-security
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec.sarif
+
+  # E2E tests only on main branch or when specifically requested
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [test, integration, security]
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'test:e2e')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protobuf tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start test environment
+        run: make test-docker-up
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to be ready..."
+          timeout 120 bash -c 'until curl -f http://localhost:8081/v1/health; do echo "Waiting for API..."; sleep 5; done'
+          echo "Services are ready!"
+
+      - name: Run E2E tests
+        env:
+          E2E_BASE_URL: http://localhost:8081
+        run: make test-e2e
+
+      - name: Collect E2E test logs
+        if: failure()
+        run: |
+          echo "=== API Logs ==="
+          docker compose -f docker-compose.test.yml logs api-test
+          echo "=== Worker Logs ==="
+          docker compose -f docker-compose.test.yml logs worker-test
+          echo "=== Database Logs ==="
+          docker compose -f docker-compose.test.yml logs postgres-test
+
+      - name: Stop test environment
+        if: always()
+        run: make test-docker-down
+
+  # Performance tests run only on schedule or when specifically requested
+  performance:
+    runs-on: ubuntu-latest
+    needs: [test, integration, security]
+    if: github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'test:performance')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install protobuf tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start test environment
+        run: make test-docker-up
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to be ready..."
+          timeout 120 bash -c 'until curl -f http://localhost:8081/v1/health; do echo "Waiting for API..."; sleep 5; done'
+          echo "Services are ready!"
+
+      - name: Run performance tests
+        run: make test-performance
+
+      - name: Archive performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            test_reports/
+            *.prof
+          retention-days: 30
+
+      - name: Stop test environment
+        if: always()
+        run: make test-docker-down
+
+  # Comprehensive test summary (only runs if all tests pass)
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: [lint, test, integration, security]
+    if: always()
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## 🧪 Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.lint.result }}" == "success" && "${{ needs.test.result }}" == "success" && "${{ needs.integration.result }}" == "success" && "${{ needs.security.result }}" == "success" ]]; then
+            echo "🎉 All core tests passed successfully!"
+            exit 0
+          else
+            echo "❌ Some tests failed. Please check the logs above."
+            exit 1
+          fi
+
+  # Nightly comprehensive test suite (runs all tests including E2E and performance)
+  nightly:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: englog_test
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install all tools
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate code
+        run: |
+          make proto
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run comprehensive test suite
+        run: make test-all
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/englog_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+
+      - name: Archive nightly test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-test-results
+          path: |
+            coverage.out
+            coverage.html
+            gosec.sarif
+            test_reports/
+            *.prof
+          retention-days: 7
+
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "🚨 Nightly tests failed!" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the logs and fix any issues." >> $GITHUB_STEP_SUMMARY

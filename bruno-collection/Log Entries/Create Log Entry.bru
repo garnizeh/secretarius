@@ -1,0 +1,36 @@
+meta {
+  name: Create Log Entry
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/logs
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "title": "Fixed authentication bug",
+    "description": "Resolved issue with JWT token validation that was causing intermittent login failures",
+    "category": "bug_fix",
+    "tags": ["authentication", "jwt", "security"],
+    "project_id": null,
+    "time_spent_minutes": 120,
+    "difficulty": 3,
+    "mood": "satisfied"
+  }
+}
+
+tests {
+  test("should create log entry successfully", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body).to.have.property('id');
+    expect(res.body).to.have.property('title');
+  });
+}

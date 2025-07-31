@@ -1,0 +1,28 @@
+meta {
+  name: Get User Tag Usage
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/v1/tags/usage?period=30d
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  period: 30d
+  ~limit:
+}
+
+tests {
+  test("should get user tag usage successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('usage');
+    expect(res.body.usage).to.be.an('array');
+  });
+}

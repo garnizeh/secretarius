@@ -1,0 +1,48 @@
+meta {
+  name: Bulk Create Log Entries
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/v1/logs/bulk
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "entries": [
+      {
+        "title": "Implemented user authentication",
+        "description": "Added JWT-based authentication system",
+        "category": "feature",
+        "tags": ["authentication", "jwt"],
+        "time_spent_minutes": 240,
+        "difficulty": 4,
+        "mood": "productive"
+      },
+      {
+        "title": "Fixed database connection pool",
+        "description": "Resolved connection leaks in database pool",
+        "category": "bug_fix",
+        "tags": ["database", "performance"],
+        "time_spent_minutes": 90,
+        "difficulty": 2,
+        "mood": "focused"
+      }
+    ]
+  }
+}
+
+tests {
+  test("should create log entries in bulk successfully", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body).to.have.property('created_count');
+    expect(res.body.created_count).to.equal(2);
+  });
+}

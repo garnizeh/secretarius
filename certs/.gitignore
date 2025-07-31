@@ -1,0 +1,15 @@
+# TLS Certificates and Private Keys
+# Keep certificates out of version control for security
+
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Allow example/template certificates (if any)
+!*.example.*
+!*.template.*
+
+# Allow README or documentation
+!README.md
+!*.md

@@ -1,0 +1,33 @@
+meta {
+  name: Create Project
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/projects
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "englog API",
+    "description": "Engineering log management API for tracking development activities",
+    "repository_url": "https://github.com/garnizeh/englog",
+    "status": "active",
+    "tags": ["go", "api", "postgresql"]
+  }
+}
+
+tests {
+  test("should create project successfully", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body).to.have.property('id');
+    expect(res.body).to.have.property('name');
+  });
+}

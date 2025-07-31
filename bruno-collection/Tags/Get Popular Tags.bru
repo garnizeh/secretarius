@@ -1,0 +1,28 @@
+meta {
+  name: Get Popular Tags
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/tags/popular?limit=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  limit: 10
+  ~period:
+}
+
+tests {
+  test("should get popular tags successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('tags');
+    expect(res.body.tags).to.be.an('array');
+  });
+}

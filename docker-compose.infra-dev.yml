@@ -1,0 +1,37 @@
+services:
+  # Development Database
+  postgres-dev:
+    image: postgres:17-alpine
+    container_name: englog_postgres_dev
+    environment:
+      - POSTGRES_DB=englog
+      - POSTGRES_USER=englog
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U englog -d englog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev
+    ports:
+      - "5432:5432"
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: englog_redis_dev
+    networks:
+      - dev
+    ports:
+      - "6379:6379"
+
+networks:
+  dev:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:

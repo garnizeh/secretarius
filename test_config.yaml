@@ -1,0 +1,13 @@
+reporting:
+  enabled: true
+  format: detailed
+  output_directory: test_reports
+  file_name: test_report.txt
+test_execution:
+  parallel: true
+  # Timeout value is in seconds
+  timeout: 300
+  retries: 2
+  test_directory: tests
+  coverage: true
+  coverage_report: true

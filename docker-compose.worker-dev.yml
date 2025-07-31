@@ -1,0 +1,38 @@
+# EngLog Worker Development Environment
+# "The journey of a thousand miles begins with one step." - Lao Tzu 🌟
+
+services:
+  # Worker Server
+  worker:
+    build:
+      context: .
+      dockerfile: deployments/worker/Dockerfile.dev
+    container_name: englog-worker-server
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "9091:9091"  # gRPC port
+      - "8091:8091"  # HTTP health check port
+    env_file:
+      - .env.worker-dev
+    volumes:
+      - .:/app
+      - worker_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - englog-worker
+
+volumes:
+  redis_data:
+    driver: local
+  worker_logs:
+    driver: local
+
+networks:
+  englog-worker:
+    driver: bridge

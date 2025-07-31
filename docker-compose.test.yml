@@ -1,0 +1,107 @@
+services:
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: englog-postgres-test
+    environment:
+      POSTGRES_DB: englog_test
+      POSTGRES_USER: englog_test
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U englog_test -d englog_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - englog-test-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: englog-redis-test
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - englog-test-network
+
+  api-test:
+    build:
+      context: .
+      dockerfile: deployments/Dockerfile
+      target: development
+    container_name: englog-api-test
+    environment:
+      - ENVIRONMENT=test
+      - APP_HOST=0.0.0.0
+      - DB_USER=englog_test
+      - DB_PASSWORD=test_password
+      - DB_HOST_READ_WRITE=postgres-test:5432
+      - DB_HOST_READ_ONLY=postgres-test:5432
+      - DB_NAME=englog_test
+      - DB_SCHEMA=englog_test
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - REDIS_POOL_SIZE=10
+      - JWT_SECRET_KEY=test-secret-key-for-testing-environment-only
+      - LOG_LEVEL=debug
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - englog-test-network
+    volumes:
+      - ./logs:/app/logs
+    command: ["./bin/api"]
+
+  worker-test:
+    build:
+      context: .
+      dockerfile: deployments/Dockerfile
+      target: development
+    container_name: englog-worker-test
+    environment:
+      - ENVIRONMENT=test
+      - DATABASE_URL=postgresql://englog_test:test_password@postgres-test:5432/englog_test?sslmode=disable
+      - REDIS_URL=redis://redis-test:6379
+      - JWT_SECRET_KEY=test-secret-key-for-testing-environment-only
+      - LOG_LEVEL=debug
+      - WORKER_CONCURRENCY=2
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - englog-test-network
+    volumes:
+      - ./logs:/app/logs
+    command: ["./bin/worker"]
+
+volumes:
+  postgres_test_data:
+    name: englog_postgres_test_data
+  redis_test_data:
+    name: englog_redis_test_data
+
+networks:
+  englog-test-network:
+    name: englog-test-network
+    driver: bridge

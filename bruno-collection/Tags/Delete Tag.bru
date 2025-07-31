@@ -1,0 +1,29 @@
+meta {
+  name: Delete Tag
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{base_url}}/v1/tags/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:path {
+  id: {{tag_id}}
+}
+
+vars {
+  tag_id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+tests {
+  test("should delete tag successfully", function() {
+    expect(res.status).to.equal(204);
+  });
+}

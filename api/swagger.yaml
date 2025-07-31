@@ -1,0 +1,350 @@
+basePath: /
+definitions:
+  models.AuthTokens:
+    description: Authentication tokens for API access
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      expires_in:
+        example: 3600
+        type: integer
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      token_type:
+        example: Bearer
+        type: string
+    type: object
+  models.UserLogin:
+    description: User login request payload
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: securePassword123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.UserProfile:
+    description: User profile information (public data)
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      last_login_at:
+        example: "2024-01-15T14:30:00Z"
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      preferences:
+        additionalProperties: {}
+        type: object
+      timezone:
+        example: UTC
+        type: string
+      updated_at:
+        example: "2024-01-15T12:00:00Z"
+        type: string
+    type: object
+  models.UserRegistration:
+    description: User registration request payload
+    properties:
+      email:
+        example: user@example.com
+        maxLength: 255
+        type: string
+      first_name:
+        example: John
+        maxLength: 100
+        type: string
+      last_name:
+        example: Doe
+        maxLength: 100
+        type: string
+      password:
+        example: securePassword123
+        maxLength: 100
+        minLength: 8
+        type: string
+      timezone:
+        example: UTC
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    - timezone
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Engineering Log Management API for tracking development activities,
+    projects, and analytics.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: englog API
+  version: "1.0"
+paths:
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, return authentication
+        tokens. Requires valid email and password.
+      parameters:
+      - description: User login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserLogin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            properties:
+              tokens:
+                $ref: '#/definitions/models.AuthTokens'
+              user:
+                $ref: '#/definitions/models.UserProfile'
+            type: object
+        "400":
+          description: Invalid request format
+          schema:
+            properties:
+              details:
+                type: string
+              error:
+                type: string
+            type: object
+        "401":
+          description: Invalid credentials
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Login user
+      tags:
+      - auth
+  /v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate refresh token and log out the user. This adds the refresh
+        token to a denylist to prevent further use.
+      parameters:
+      - description: Refresh token to invalidate
+        in: body
+        name: logout
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged out
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid request format or token
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Failed to logout
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Logout user
+      tags:
+      - auth
+  /v1/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the profile information of the currently authenticated
+        user. Requires a valid Bearer token in the Authorization header.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          schema:
+            properties:
+              user:
+                $ref: '#/definitions/models.UserProfile'
+            type: object
+        "400":
+          description: Invalid user ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: User not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - auth
+  /v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generate new access and refresh tokens using a valid refresh token.
+        This allows extending the user session without requiring re-authentication.
+      parameters:
+      - description: Refresh token data
+        in: body
+        name: refresh
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          schema:
+            properties:
+              tokens:
+                $ref: '#/definitions/models.AuthTokens'
+            type: object
+        "400":
+          description: Invalid request format
+          schema:
+            properties:
+              details:
+                type: string
+              error:
+                type: string
+            type: object
+        "401":
+          description: Invalid refresh token
+          schema:
+            properties:
+              details:
+                type: string
+              error:
+                type: string
+            type: object
+      summary: Refresh access token
+      tags:
+      - auth
+  /v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account and return authentication tokens. The
+        user will be automatically logged in after successful registration.
+      parameters:
+      - description: User registration data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserRegistration'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            properties:
+              tokens:
+                $ref: '#/definitions/models.AuthTokens'
+              user:
+                $ref: '#/definitions/models.UserProfile'
+            type: object
+        "400":
+          description: Invalid request format
+          schema:
+            properties:
+              details:
+                type: string
+              error:
+                type: string
+            type: object
+        "409":
+          description: User already exists
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - auth
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,33 @@
+meta {
+  name: Get Log Entries
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/logs?limit=10&offset=0
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  limit: 10
+  offset: 0
+  ~category:
+  ~project_id:
+  ~tag:
+  ~start_date:
+  ~end_date:
+}
+
+tests {
+  test("should get log entries successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('entries');
+    expect(res.body.entries).to.be.an('array');
+  });
+}

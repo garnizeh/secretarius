@@ -1,0 +1,44 @@
+meta {
+  name: Update Log Entry
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/v1/logs/:id
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:path {
+  id: {{log_entry_id}}
+}
+
+vars {
+  log_entry_id: 123e4567-e89b-12d3-a456-426614174000
+}
+
+body:json {
+  {
+    "title": "Fixed authentication bug - Updated",
+    "description": "Resolved issue with JWT token validation that was causing intermittent login failures. Added additional test cases.",
+    "category": "bug_fix",
+    "tags": ["authentication", "jwt", "security", "testing"],
+    "project_id": null,
+    "time_spent_minutes": 150,
+    "difficulty": 3,
+    "mood": "satisfied"
+  }
+}
+
+tests {
+  test("should update log entry successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('id');
+    expect(res.body).to.have.property('title');
+  });
+}

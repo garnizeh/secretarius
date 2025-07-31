@@ -1,0 +1,29 @@
+meta {
+  name: Get Productivity Metrics
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/analytics/productivity?period=30d
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  period: 30d
+  ~project_id:
+  ~category:
+}
+
+tests {
+  test("should get productivity metrics successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('total_time_spent');
+    expect(res.body).to.have.property('entry_count');
+  });
+}
