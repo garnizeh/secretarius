@@ -116,13 +116,15 @@ Cada requisição inclui testes básicos que verificam:
 ### Entrada de Log
 ```json
 {
-  "title": "Fixed authentication bug",
-  "description": "Resolved issue with JWT token validation",
-  "category": "bug_fix",
-  "tags": ["authentication", "jwt", "security"],
-  "time_spent_minutes": 120,
-  "difficulty": 3,
-  "mood": "satisfied"
+  "title": "Implementação de autenticação JWT",
+  "description": "Desenvolvimento completo do sistema de autenticação usando JWT com refresh tokens e middleware de proteção",
+  "type": "development",
+  "value_rating": "high",
+  "impact_level": "team",
+  "project_id": null,
+  "start_time": "2025-07-31T09:00:00Z",
+  "end_time": "2025-07-31T11:30:00Z",
+  "tags": ["jwt", "authentication", "security", "backend"]
 }
 ```
 
@@ -139,11 +141,21 @@ Cada requisição inclui testes básicos que verificam:
 
 ## Dicas
 
+### Campos de Entrada de Log
+
+- **type**: Tipo de atividade (development, meeting, code_review, debugging, documentation, testing, deployment, research, planning, learning, maintenance, support, other)
+- **value_rating**: Valor percebido da atividade (low, medium, high, critical)
+- **impact_level**: Nível de impacto (personal, team, department, company)
+- **start_time/end_time**: Horários em formato ISO 8601 (ex: 2025-07-31T09:00:00Z)
+- **duration_minutes**: Calculado automaticamente pelo sistema
+- **tags**: Array de strings para categorização flexível
+
 1. **Ordem das Requisições**: Comece sempre com autenticação
 2. **IDs de Teste**: Use os IDs de exemplo fornecidos ou capture-os das respostas
 3. **Filtros**: Muitas listagens suportam filtros via query parameters
 4. **Paginação**: Use `limit` e `offset` para paginar resultados
 5. **Tokens**: Os tokens são automaticamente gerenciados pelos scripts
+6. **Horários**: Use sempre formato ISO 8601 com timezone (Z para UTC)
 
 ## Troubleshooting
 
