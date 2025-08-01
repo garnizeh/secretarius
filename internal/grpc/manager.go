@@ -153,7 +153,7 @@ func (m *Manager) GetServer() *Server {
 }
 
 // QueueInsightGenerationTask queues an insight generation task
-func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, insightType string, contextStr string) (string, error) {
+func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, insightType string, contextData any) (string, error) {
 	start := time.Now()
 	taskID := fmt.Sprintf("insight_%s_%d", userID, time.Now().Unix())
 
@@ -168,7 +168,7 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 		"user_id":      userID,
 		"entry_ids":    entryIDs,
 		"insight_type": insightType,
-		"context":      contextStr,
+		"context":      contextData,
 	}
 
 	payloadJSON, err := jsonMarshal(payload)

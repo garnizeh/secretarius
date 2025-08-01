@@ -156,16 +156,29 @@ func TestManager_QueueInsightGenerationTask(t *testing.T) {
 		userID      string
 		entryIDs    []string
 		insightType string
-		context     string
+		context     any
 		wantErr     bool
 	}{
 		{
-			name:        "valid insight generation task",
+			name:        "valid insight generation task with string context",
 			userID:      "user-123",
 			entryIDs:    []string{"entry-1", "entry-2", "entry-3"},
 			insightType: "productivity",
 			context:     "Weekly productivity analysis",
 			wantErr:     false,
+		},
+		{
+			name:        "valid insight generation task with object context",
+			userID:      "user-123",
+			entryIDs:    []string{"entry-1", "entry-2"},
+			insightType: "productivity",
+			context: map[string]any{
+				"time_blocks":    []string{"morning", "afternoon"},
+				"focus_areas":    []string{"development", "meetings"},
+				"date_range":     map[string]string{"start": "2025-07-01", "end": "2025-07-31"},
+				"analysis_focus": "Weekly productivity analysis for performance review",
+			},
+			wantErr: false,
 		},
 		{
 			name:        "empty user ID",
