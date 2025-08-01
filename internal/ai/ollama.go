@@ -44,7 +44,7 @@ type InsightRequest struct {
 	UserID      string   `json:"user_id"`
 	EntryIDs    []string `json:"entry_ids"`
 	InsightType string   `json:"insight_type"`
-	Context     string   `json:"context"`
+	Context     any      `json:"context,omitempty"`
 }
 
 // WeeklyReportRequest represents a request for weekly report generation
@@ -158,6 +158,178 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 		"max_retries", maxRetries)
 
 	return nil, fmt.Errorf("failed to generate insight after %d attempts: %w", maxRetries, lastErr)
+}
+
+// GenerateInsightWithContext generates AI insights using structured context
+func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *InsightRequest) (*Insight, error) {
+	if req.Prompt == "" {
+		s.logger.LogError(ctx, fmt.Errorf("empty prompt"), "GenerateInsightWithContext called with empty prompt")
+		return nil, fmt.Errorf("prompt cannot be empty")
+	}
+
+	// Enhance prompt with structured context
+	enhancedPrompt := s.buildEnhancedPrompt(req)
+
+	s.logger.Info("Starting insight generation with context",
+		"user_id", req.UserID,
+		"insight_type", req.InsightType,
+		"entry_count", len(req.EntryIDs),
+		"enhanced_prompt_length", len(enhancedPrompt),
+		"context_type", fmt.Sprintf("%T", req.Context))
+
+	return s.GenerateInsight(ctx, enhancedPrompt)
+}
+
+// buildEnhancedPrompt creates an enhanced prompt using the structured context
+func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
+	basePrompt := req.Prompt
+
+	// Handle different context types
+	switch contextData := req.Context.(type) {
+	case string:
+		// Backward compatibility - simple string context
+		if contextData != "" {
+			return fmt.Sprintf("%s\n\nContext: %s", basePrompt, contextData)
+		}
+		return basePrompt
+
+	case map[string]any:
+		// Structured context - serialize to JSON for AI processing
+		if len(contextData) > 0 {
+			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
+			if err != nil {
+				s.logger.Warn("Failed to marshal context data, using base prompt",
+					"error", err.Error())
+				return basePrompt
+			}
+			return fmt.Sprintf("%s\n\nStructured Context:\n%s", basePrompt, string(contextJSON))
+		}
+		return basePrompt
+
+	case nil:
+		// No context provided
+		return basePrompt
+
+	default:
+		// Unknown context type - try to convert to JSON
+		s.logger.Warn("Unknown context type, attempting JSON serialization",
+			"type", fmt.Sprintf("%T", contextData))
+
+		contextJSON, err := json.MarshalIndent(contextData, "", "  ")
+		if err != nil {
+			s.logger.Warn("Failed to serialize unknown context type, using base prompt",
+				"error", err.Error(),
+				"type", fmt.Sprintf("%T", contextData))
+			return basePrompt
+		}
+		return fmt.Sprintf("%s\n\nContext Data:\n%s", basePrompt, string(contextJSON))
+	}
+}
+
+// ValidateInsightRequest validates the insight request structure
+func (s *OllamaService) ValidateInsightRequest(req *InsightRequest) error {
+	if req.Prompt == "" {
+		return fmt.Errorf("prompt cannot be empty")
+	}
+	if req.UserID == "" {
+		return fmt.Errorf("user_id cannot be empty")
+	}
+	if req.InsightType == "" {
+		return fmt.Errorf("insight_type cannot be empty")
+	}
+	if len(req.EntryIDs) == 0 {
+		return fmt.Errorf("entry_ids cannot be empty")
+	}
+
+	// Validate context based on insight type
+	return s.validateContextForInsightType(req.Context, req.InsightType)
+}
+
+// validateContextForInsightType validates context structure based on insight type
+func (s *OllamaService) validateContextForInsightType(context any, insightType string) error {
+	if context == nil {
+		return nil // Optional context
+	}
+
+	switch contextData := context.(type) {
+	case string:
+		// String context is always valid
+		return nil
+
+	case map[string]any:
+		// Validate structured context based on insight type
+		switch insightType {
+		case "productivity":
+			return s.validateProductivityContext(contextData)
+		case "skill_development":
+			return s.validateSkillDevelopmentContext(contextData)
+		case "time_management":
+			return s.validateTimeManagementContext(contextData)
+		default:
+			// For unknown insight types, accept any valid JSON structure
+			return nil
+		}
+
+	default:
+		// Try to serialize to ensure it's JSON-compatible
+		_, err := json.Marshal(context)
+		if err != nil {
+			return fmt.Errorf("context must be JSON-serializable: %w", err)
+		}
+		return nil
+	}
+}
+
+// validateProductivityContext validates productivity-specific context
+func (s *OllamaService) validateProductivityContext(context map[string]any) error {
+	// Example validation for productivity context
+	if timeBlocks, exists := context["time_blocks"]; exists {
+		if blocks, ok := timeBlocks.([]any); ok {
+			for _, block := range blocks {
+				if _, ok := block.(string); !ok {
+					return fmt.Errorf("time_blocks must contain strings")
+				}
+			}
+		} else {
+			return fmt.Errorf("time_blocks must be an array")
+		}
+	}
+	return nil
+}
+
+// validateSkillDevelopmentContext validates skill development context
+func (s *OllamaService) validateSkillDevelopmentContext(context map[string]any) error {
+	// Example validation for skill development context
+	if focusAreas, exists := context["focus_areas"]; exists {
+		if areas, ok := focusAreas.([]any); ok {
+			for _, area := range areas {
+				if _, ok := area.(string); !ok {
+					return fmt.Errorf("focus_areas must contain strings")
+				}
+			}
+		} else {
+			return fmt.Errorf("focus_areas must be an array")
+		}
+	}
+	return nil
+}
+
+// validateTimeManagementContext validates time management context
+func (s *OllamaService) validateTimeManagementContext(context map[string]any) error {
+	// Example validation for time management context
+	if dateRange, exists := context["date_range"]; exists {
+		if rangeMap, ok := dateRange.(map[string]any); ok {
+			if _, hasStart := rangeMap["start"]; !hasStart {
+				return fmt.Errorf("date_range must include 'start' field")
+			}
+			if _, hasEnd := rangeMap["end"]; !hasEnd {
+				return fmt.Errorf("date_range must include 'end' field")
+			}
+		} else {
+			return fmt.Errorf("date_range must be an object")
+		}
+	}
+	return nil
 }
 
 // GenerateWeeklyReport generates a weekly report with retry logic
