@@ -51,14 +51,21 @@ A collection está organizada nas seguintes pastas:
 - **Get Active Workers**: Lista workers ativos e suas informações
 - **Worker Health Check**: Verifica o status de saúde do sistema de workers
 
-### 📋 Tasks
-- **Request Insight Generation**: Solicita geração de insights com IA
+### 📋 Tasks (Enhanced AI Insights)
+- **Request Insight Generation**: Solicita geração de insights com IA (enhanced with structured context)
+- **Request Skill Development Insight**: Insights focados em desenvolvimento de habilidades
+- **Request Time Management Insight**: Análise de gestão de tempo e produtividade
+- **Request Team Collaboration Insight**: Insights sobre colaboração e dinâmicas de equipe
+- **Request Insight with Mixed Context**: Exemplo com contexto misto e lista grande de entries
 - **Request Weekly Report**: Solicita geração de relatório semanal
 - **Get Task Result**: Obtém resultado de uma task específica
 - **Get Task Result by Report ID**: Obtém resultado usando ID do relatório
-- **Request Insight - Invalid Payload**: Teste com payload inválido
+- **Request Insight - Invalid Payload**: Teste com payload inválido (enhanced validation)
 - **Request Report - Invalid Date Format**: Teste com formato de data inválido
 - **Get Task Result - Nonexistent Task**: Teste com task inexistente
+
+> 🚀 **New in v2.1**: Enhanced context support with structured JSON objects for richer AI insights!
+> 📖 See `ENHANCED_CONTEXT_GUIDE.md` for detailed documentation on the new features.
 
 ### �👤 Users
 - **Get Profile**: Obtém o perfil do usuário
@@ -237,12 +244,90 @@ GET /v1/tasks/{task_id}/result
 4. **Paginação**: Use `limit` e `offset` para paginar resultados
 5. **Tokens**: Os tokens são automaticamente gerenciados pelos scripts
 6. **Tasks Assíncronas**: Use os endpoints de tasks para processamento com IA
-6. **Horários**: Use sempre formato ISO 8601 com timezone (Z para UTC)
+7. **Horários**: Use sempre formato ISO 8601 com timezone (Z para UTC)
+8. **Contexto Estruturado**: Use objetos JSON para contexto rico nos insights
+
+## 🧠 Enhanced AI Insights (v2.1)
+
+### New Features
+
+A collection agora demonstra as funcionalidades avançadas de geração de insights com contexto estruturado:
+
+#### Structured Context Support
+- **JSON Objects**: Contexto estruturado com dados aninhados
+- **Backward Compatibility**: Mantém suporte a contexto string simples
+- **Type-Specific Guidelines**: Instruções específicas por tipo de insight
+
+#### Insight Types with Specialized Context
+
+1. **Productivity Analysis**
+   ```json
+   {
+     "time_blocks": ["morning", "afternoon"],
+     "focus_areas": ["development", "meetings"],
+     "performance_metrics": {
+       "avg_daily_hours": 8.5,
+       "productivity_score": 0.85
+     }
+   }
+   ```
+
+2. **Skill Development**
+   ```json
+   {
+     "focus_areas": ["golang", "system_design"],
+     "learning_goals": ["Improve concurrency patterns"],
+     "current_skill_level": {
+       "golang": "intermediate"
+     }
+   }
+   ```
+
+3. **Time Management**
+   ```json
+   {
+     "date_range": {
+       "start": "2025-07-01",
+       "end": "2025-07-31"
+     },
+     "work_schedule": {
+       "preferred_deep_work_hours": ["09:00-12:00"]
+     }
+   }
+   ```
+
+4. **Team Collaboration**
+   ```json
+   {
+     "team_size": 6,
+     "role": "senior_developer",
+     "collaboration_types": ["code_reviews", "mentoring"]
+   }
+   ```
+
+#### Enhanced Prompt Generation
+
+The system now creates rich, structured prompts that include:
+- User identification and context
+- Insight type specific guidelines
+- Entry count and smart ID truncation
+- Structured context data
+- Consistent output format instructions
+
+#### Testing the Enhanced Features
+
+1. **Run the enhanced requests** to see structured context in action
+2. **Compare results** with simple string context
+3. **Check task results** for improved AI responses
+4. **Experiment with different** context structures
+
+For detailed documentation, see `ENHANCED_CONTEXT_GUIDE.md`.
 
 ## Troubleshooting
 
 - **401 Unauthorized**: Verifique se o token está válido ou renove-o
 - **404 Not Found**: Verifique se os IDs usados existem
+- **Structured Context Issues**: Verifique se o JSON está bem formado
 - **400 Bad Request**: Verifique a estrutura do JSON enviado
 - **Conexão recusada**: Verifique se a API está rodando na URL configurada
 

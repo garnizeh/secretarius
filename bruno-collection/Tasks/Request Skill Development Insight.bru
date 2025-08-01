@@ -1,7 +1,7 @@
 meta {
-  name: Request Insight Generation
+  name: Request Skill Development Insight
   type: http
-  seq: 1
+  seq: 2
 }
 
 post {
@@ -21,22 +21,30 @@ body:json {
     "entry_ids": [
       "550e8400-e29b-41d4-a716-446655440001",
       "550e8400-e29b-41d4-a716-446655440002",
-      "550e8400-e29b-41d4-a716-446655440003"
+      "550e8400-e29b-41d4-a716-446655440003",
+      "550e8400-e29b-41d4-a716-446655440004"
     ],
-    "insight_type": "productivity",
+    "insight_type": "skill_development",
     "context": {
-      "time_blocks": ["morning", "afternoon", "evening"],
-      "focus_areas": ["development", "meetings", "code_review", "documentation"],
-      "date_range": {
+      "focus_areas": ["golang", "system_design", "api_development", "testing"],
+      "learning_goals": [
+        "Improve Go concurrency patterns",
+        "Master microservices architecture",
+        "Enhance testing strategies"
+      ],
+      "current_skill_level": {
+        "golang": "intermediate",
+        "system_design": "beginner",
+        "testing": "intermediate"
+      },
+      "time_investment": {
+        "learning_hours_per_week": 10,
+        "practice_hours_per_week": 15
+      },
+      "analysis_period": {
         "start": "2025-07-01",
         "end": "2025-07-31"
-      },
-      "performance_metrics": {
-        "avg_daily_hours": 8.5,
-        "productivity_score": 0.85,
-        "high_value_activities_percent": 65.2
-      },
-      "analysis_focus": "Weekly productivity analysis for performance review with emphasis on high-impact activities and time optimization opportunities"
+      }
     }
   }
 }
@@ -62,6 +70,6 @@ tests {
 
 script:post-response {
   if (res.getStatus() === 202) {
-    bru.setVar("task_id", res.getBody().task_id);
+    bru.setVar("skill_task_id", res.getBody().task_id);
   }
 }

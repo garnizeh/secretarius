@@ -1,7 +1,7 @@
 meta {
-  name: Request Insight Generation
+  name: Request Insight with Mixed Context
   type: http
-  seq: 1
+  seq: 6
 }
 
 post {
@@ -21,23 +21,15 @@ body:json {
     "entry_ids": [
       "550e8400-e29b-41d4-a716-446655440001",
       "550e8400-e29b-41d4-a716-446655440002",
-      "550e8400-e29b-41d4-a716-446655440003"
+      "550e8400-e29b-41d4-a716-446655440003",
+      "550e8400-e29b-41d4-a716-446655440004",
+      "550e8400-e29b-41d4-a716-446655440005",
+      "550e8400-e29b-41d4-a716-446655440006",
+      "550e8400-e29b-41d4-a716-446655440007",
+      "550e8400-e29b-41d4-a716-446655440008"
     ],
     "insight_type": "productivity",
-    "context": {
-      "time_blocks": ["morning", "afternoon", "evening"],
-      "focus_areas": ["development", "meetings", "code_review", "documentation"],
-      "date_range": {
-        "start": "2025-07-01",
-        "end": "2025-07-31"
-      },
-      "performance_metrics": {
-        "avg_daily_hours": 8.5,
-        "productivity_score": 0.85,
-        "high_value_activities_percent": 65.2
-      },
-      "analysis_focus": "Weekly productivity analysis for performance review with emphasis on high-impact activities and time optimization opportunities"
-    }
+    "context": "Comprehensive monthly productivity analysis focusing on the transition from working on legacy systems to new microservices architecture. The user has been learning Go and implementing new patterns while maintaining existing PHP systems. Special attention needed for work-life balance during this transition period."
   }
 }
 
@@ -58,10 +50,14 @@ tests {
   test("Message should confirm task queued", function() {
     expect(res.getBody().message).to.include('queued successfully');
   });
+
+  test("Should handle large entry_ids list (demonstrates truncation)", function() {
+    expect(res.getBody()).to.have.property('task_id');
+  });
 }
 
 script:post-response {
   if (res.getStatus() === 202) {
-    bru.setVar("task_id", res.getBody().task_id);
+    bru.setVar("mixed_context_task_id", res.getBody().task_id);
   }
 }
