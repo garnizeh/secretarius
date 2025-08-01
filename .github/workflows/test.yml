@@ -259,7 +259,7 @@ jobs:
       - name: Install protobuf compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler netcat-openbsd
 
       - name: Install protobuf tools
         run: |
@@ -279,7 +279,26 @@ jobs:
       - name: Wait for services
         run: |
           echo "Waiting for services to be ready..."
-          timeout 120 bash -c 'until curl -f http://localhost:8081/v1/health; do echo "Waiting for API..."; sleep 5; done'
+          echo "Checking Docker containers status..."
+          docker compose -f docker-compose.test.yml ps
+
+          echo "Checking if API container is healthy..."
+          for i in {1..24}; do
+            if docker compose -f docker-compose.test.yml ps api-test | grep -q "healthy\|Up"; then
+              echo "API container is running, checking health endpoint..."
+              break
+            fi
+            echo "Waiting for API container... (attempt $i/24)"
+            sleep 5
+          done
+
+          echo "Testing health endpoint..."
+          timeout 120 bash -c 'until curl -f http://localhost:8081/health; do
+            echo "Waiting for API health endpoint...";
+            echo "Trying to connect to localhost:8081...";
+            nc -z localhost 8081 && echo "Port 8081 is open" || echo "Port 8081 is not accessible";
+            sleep 5;
+          done'
           echo "Services are ready!"
 
       - name: Run E2E tests
@@ -331,7 +350,7 @@ jobs:
       - name: Install protobuf compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler netcat-openbsd
 
       - name: Install protobuf tools
         run: |
@@ -351,7 +370,26 @@ jobs:
       - name: Wait for services
         run: |
           echo "Waiting for services to be ready..."
-          timeout 120 bash -c 'until curl -f http://localhost:8081/v1/health; do echo "Waiting for API..."; sleep 5; done'
+          echo "Checking Docker containers status..."
+          docker compose -f docker-compose.test.yml ps
+
+          echo "Checking if API container is healthy..."
+          for i in {1..24}; do
+            if docker compose -f docker-compose.test.yml ps api-test | grep -q "healthy\|Up"; then
+              echo "API container is running, checking health endpoint..."
+              break
+            fi
+            echo "Waiting for API container... (attempt $i/24)"
+            sleep 5
+          done
+
+          echo "Testing health endpoint..."
+          timeout 120 bash -c 'until curl -f http://localhost:8081/health; do
+            echo "Waiting for API health endpoint...";
+            echo "Trying to connect to localhost:8081...";
+            nc -z localhost 8081 && echo "Port 8081 is open" || echo "Port 8081 is not accessible";
+            sleep 5;
+          done'
           echo "Services are ready!"
 
       - name: Run performance tests

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
@@ -28,7 +29,7 @@ func TestAPILoadTesting(t *testing.T) {
 	// Health endpoint load test
 	targeter := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: "GET",
-		URL:    "http://localhost:8080/v1/health",
+		URL:    "http://localhost:8080/health",
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
 		},
@@ -136,7 +137,7 @@ func BenchmarkUserLogin(b *testing.B) {
 
 // BenchmarkHealthCheck benchmarks health check endpoint
 func BenchmarkHealthCheck(b *testing.B) {
-	endpoint := "http://localhost:8080/v1/health"
+	endpoint := "http://localhost:8080/health"
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

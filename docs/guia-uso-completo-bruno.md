@@ -12,7 +12,7 @@ Este guia detalha o fluxo completo para incluir entradas no log usando a coleç�
    make dev-up
 
    # Verificar se a API está funcionando
-   make dev-api
+   make health-api
    ```
 
 2. **Bruno Client**: Tenha o Bruno instalado e configurado
@@ -20,7 +20,7 @@ Este guia detalha o fluxo completo para incluir entradas no log usando a coleç�
 
 ## 🎯 Fluxo Completo: Passo a Passo
 
-### **Passo 1: Verificar Saúde da API** 🏥
+### **Passo 1.1: Verificar Saúde da API** 🏥
 
 **Request**: `Health/Health Check.bru`
 - **Método**: `GET`
@@ -31,10 +31,38 @@ Este guia detalha o fluxo completo para incluir entradas no log usando a coleç�
 **Resposta Esperada**:
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-07-31T10:30:00Z"
+  "status": "healthy",
+  "timestamp": "2025-07-31T17:46:30Z",
+  "uptime": "4m26.179504494s",
+  "version": "1.0.0"
 }
 ```
+
+**Campos da Resposta**:
+- `status`: Status da API (`"healthy"` = funcionando normalmente)
+- `timestamp`: Timestamp atual no formato ISO 8601 UTC
+- `uptime`: Tempo que a API está rodando desde o último restart
+- `version`: Versão atual da aplicação
+
+### **Passo 1.2: Verificar Prontidão da API** 🔍
+
+**Request**: `Health/Readiness Check.bru`
+- **Método**: `GET`
+- **URL**: `{{base_url}}/ready`
+- **Autenticação**: Nenhuma
+- **Objetivo**: Verificar se a API está pronta para receber requisições
+
+**Resposta Esperada**:
+```json
+{
+  "status": "ready",
+  "timestamp": "2025-07-31T17:46:44Z"
+}
+```
+
+**Diferença entre `/health` e `/ready`**:
+- `/health`: Verifica se a aplicação está funcionando
+- `/ready`: Verifica se a aplicação está pronta (conectividade com banco, etc.)
 
 ---
 
@@ -60,18 +88,41 @@ Este guia detalha o fluxo completo para incluir entradas no log usando a coleç�
 ```json
 {
   "user": {
-    "id": "uuid-do-usuario",
+    "id": "37f73409-5a68-4cc6-b47d-8ddae8261525",
     "email": "engineer@example.com",
     "first_name": "Maria",
     "last_name": "Silva",
-    "timezone": "America/Sao_Paulo"
+    "timezone": "America/Sao_Paulo",
+    "preferences": {},
+    "created_at": "2025-07-31T17:54:06Z",
+    "updated_at": "0001-01-01T00:00:00Z"
   },
   "tokens": {
-    "access_token": "eyJ...",
-    "refresh_token": "eyJ..."
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 900,
+    "token_type": "Bearer"
   }
 }
 ```
+
+**Campos da Resposta**:
+
+**User**:
+- `id`: UUID único do usuário
+- `email`: Email do usuário
+- `first_name`: Primeiro nome
+- `last_name`: Sobrenome
+- `timezone`: Fuso horário configurado
+- `preferences`: Objeto de preferências (inicialmente vazio)
+- `created_at`: Timestamp de criação da conta
+- `updated_at`: Timestamp da última atualização
+
+**Tokens**:
+- `access_token`: Token JWT para autenticação de requisições
+- `refresh_token`: Token para renovar o access_token
+- `expires_in`: Tempo de expiração do access_token em segundos (900 = 15 minutos)
+- `token_type`: Tipo do token (sempre "Bearer")
 
 **Script Automático**: O Bruno automaticamente salva os tokens nas variáveis de ambiente.
 
@@ -92,7 +143,29 @@ Este guia detalha o fluxo completo para incluir entradas no log usando a coleç�
 }
 ```
 
-**Resposta Esperada**: Similar ao registro, mas sem dados de criação.
+**Resposta Esperada**:
+```json
+{
+  "user": {
+    "id": "37f73409-5a68-4cc6-b47d-8ddae8261525",
+    "email": "engineer@example.com",
+    "first_name": "Maria",
+    "last_name": "Silva",
+    "timezone": "America/Sao_Paulo",
+    "preferences": {},
+    "created_at": "2025-07-31T17:54:06Z",
+    "updated_at": "0001-01-01T00:00:00Z"
+  },
+  "tokens": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 900,
+    "token_type": "Bearer"
+  }
+}
+```
+
+**Nota**: A resposta do login é idêntica à do registro, incluindo todos os dados do usuário e tokens de autenticação.
 
 ---
 
@@ -508,7 +581,7 @@ Os requests de autenticação incluem scripts que:
 - Valide formato das datas (ISO 8601)
 
 ### **Erro de Conexão**
-- Confirme que a API está rodando: `make dev-api`
+- Confirme que a API está rodando: `make health-api`
 - Verifique se o `base_url` está correto no ambiente
 
 ---
@@ -546,7 +619,9 @@ Os requests de autenticação incluem scripts que:
 
 ## ✅ Checklist de Verificação
 
-- [ ] API está rodando (`make dev-api`)
+- [ ] API está rodando (`make health-api`)
+- [ ] Health check retorna `status: "healthy"` com uptime e version
+- [ ] Readiness check retorna `status: "ready"`
 - [ ] Coleção Bruno importada
 - [ ] Ambiente Local configurado
 - [ ] Health check passou
