@@ -1,7 +1,7 @@
 meta {
-  name: Request Insight Generation
+  name: Request Team Collaboration Insight
   type: http
-  seq: 1
+  seq: 4
 }
 
 post {
@@ -23,20 +23,33 @@ body:json {
       "550e8400-e29b-41d4-a716-446655440002",
       "550e8400-e29b-41d4-a716-446655440003"
     ],
-    "insight_type": "productivity",
+    "insight_type": "team_collaboration",
     "context": {
-      "time_blocks": ["morning", "afternoon", "evening"],
-      "focus_areas": ["development", "meetings", "code_review", "documentation"],
-      "date_range": {
-        "start": "2025-07-01",
-        "end": "2025-07-31"
+      "team_size": 6,
+      "role": "senior_developer",
+      "collaboration_types": [
+        "code_reviews",
+        "pair_programming",
+        "technical_discussions",
+        "mentoring",
+        "cross_team_coordination"
+      ],
+      "communication_channels": {
+        "slack_messages_per_day": 45,
+        "meetings_per_week": 8,
+        "code_review_participation": "high"
       },
-      "performance_metrics": {
-        "avg_daily_hours": 8.5,
-        "productivity_score": 0.85,
-        "high_value_activities_percent": 65.2
+      "team_dynamics": {
+        "team_tenure": "6_months",
+        "experience_levels": ["junior", "mid", "senior", "lead"],
+        "current_projects": 3
       },
-      "analysis_focus": "Weekly productivity analysis for performance review with emphasis on high-impact activities and time optimization opportunities"
+      "improvement_areas": [
+        "Reduce meeting overhead",
+        "Improve asynchronous communication",
+        "Enhance knowledge sharing"
+      ],
+      "analysis_focus": "Team collaboration effectiveness and communication patterns analysis for Q3 2025"
     }
   }
 }
@@ -62,6 +75,6 @@ tests {
 
 script:post-response {
   if (res.getStatus() === 202) {
-    bru.setVar("task_id", res.getBody().task_id);
+    bru.setVar("collaboration_task_id", res.getBody().task_id);
   }
 }

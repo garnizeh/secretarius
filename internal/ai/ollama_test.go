@@ -133,7 +133,7 @@ func TestGenerateInsight(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.serverStatus)
-				w.Write([]byte(tt.serverResponse))
+				_, _ = w.Write([]byte(tt.serverResponse))
 			}))
 			defer server.Close()
 
@@ -165,7 +165,7 @@ func TestGenerateInsightWithContext(t *testing.T) {
 	// Create mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"response": "Context-aware insight response", "done": true}`))
+		_, _ = w.Write([]byte(`{"response": "Context-aware insight response", "done": true}`))
 	}))
 	defer server.Close()
 
@@ -696,7 +696,7 @@ func TestGenerateWeeklyReport(t *testing.T) {
 			// Create mock server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.serverStatus)
-				w.Write([]byte(tt.serverResponse))
+				_, _ = w.Write([]byte(tt.serverResponse))
 			}))
 			defer server.Close()
 
@@ -764,7 +764,7 @@ func TestHealthCheck(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.serverStatus)
-				w.Write([]byte(tt.serverResponse))
+				_, _ = w.Write([]byte(tt.serverResponse))
 			}))
 			defer server.Close()
 
@@ -822,7 +822,7 @@ func TestGenerateWithTimeout(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				time.Sleep(tt.serverDelay)
 				w.WriteHeader(tt.serverStatus)
-				w.Write([]byte(tt.serverResponse))
+				_, _ = w.Write([]byte(tt.serverResponse))
 			}))
 			defer server.Close()
 
@@ -852,7 +852,7 @@ func TestContextCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second) // Long delay to allow cancellation
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"response": "Should not reach here", "done": true}`))
+		_, _ = w.Write([]byte(`{"response": "Should not reach here", "done": true}`))
 	}))
 	defer server.Close()
 
@@ -902,10 +902,10 @@ func TestRetryMechanism(t *testing.T) {
 		attemptCount++
 		if attemptCount < 3 {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "Temporary error"}`))
+			_, _ = w.Write([]byte(`{"error": "Temporary error"}`))
 		} else {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"response": "Success after retry", "done": true}`))
+			_, _ = w.Write([]byte(`{"response": "Success after retry", "done": true}`))
 		}
 	}))
 	defer server.Close()
@@ -929,7 +929,7 @@ func TestConcurrentRequests(t *testing.T) {
 	// Create mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"response": "Concurrent response", "done": true}`))
+		_, _ = w.Write([]byte(`{"response": "Concurrent response", "done": true}`))
 	}))
 	defer server.Close()
 
@@ -1047,7 +1047,7 @@ func BenchmarkGenerateInsight(b *testing.B) {
 	// Create mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"response": "Benchmark response", "done": true}`))
+		_, _ = w.Write([]byte(`{"response": "Benchmark response", "done": true}`))
 	}))
 	defer server.Close()
 
@@ -1098,7 +1098,7 @@ func TestEdgeCases(t *testing.T) {
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"response": "Long prompt response", "done": true}`))
+			_, _ = w.Write([]byte(`{"response": "Long prompt response", "done": true}`))
 		}))
 		defer server.Close()
 
@@ -1114,7 +1114,7 @@ func TestEdgeCases(t *testing.T) {
 	t.Run("Complex nested context", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"response": "Complex context response", "done": true}`))
+			_, _ = w.Write([]byte(`{"response": "Complex context response", "done": true}`))
 		}))
 		defer server.Close()
 
@@ -1149,7 +1149,7 @@ func TestEdgeCases(t *testing.T) {
 	t.Run("Malformed server response", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"response": "incomplete`)) // Malformed JSON
+			_, _ = w.Write([]byte(`{"response": "incomplete`)) // Malformed JSON
 		}))
 		defer server.Close()
 
