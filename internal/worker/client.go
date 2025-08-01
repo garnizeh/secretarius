@@ -234,7 +234,7 @@ func (c *Client) doRegisterWorker(ctx context.Context) error {
 		},
 		Version: c.config.Worker.Version,
 		Metadata: map[string]string{
-			"ai_model":    "llama3.2:3b",
+			"ai_model":    "qwen2.5-coder:7b",
 			"max_tasks":   fmt.Sprintf("%d", c.config.Worker.MaxConcurrentTasks),
 			"environment": c.config.Environment,
 		},

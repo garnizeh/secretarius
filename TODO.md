@@ -4,6 +4,128 @@
 
 ## High Priority Tasks
 
+### 🎯 Task 0125: Sistema de Configuração Hierárquica de Modelos LLM
+**Priority**: HIGH
+**Estimated Effort**: 4-6 weeks
+**Due Date**: Q3 2025
+**Document**: [LLM Config Hierarchy Proposal](docs/llm-config-hierarchy-proposal.md)
+
+**Description**:
+Implementar sistema hierárquico de configuração de modelos LLM para substituir o modelo hardcoded atual ("llama3.2:3b") por um sistema flexível com precedência: User > TaskType > System.
+
+**Subtasks**:
+
+#### 📋 **Fase 1: Foundation (1-2 semanas)**
+- [ ] **Task 0125.1**: Atualizar protocolo gRPC (`proto/worker.proto`)
+  - [ ] Adicionar mensagem `LLMConfig` com campos: model, timeout_seconds, max_retries, fallback_model, parameters
+  - [ ] Adicionar `LLMConfig llm_config` na `TaskRequest`
+  - [ ] Adicionar `repeated string supported_models` e `LLMConfig default_llm_config` na `RegisterWorkerRequest`
+  - [ ] Regenerar código gRPC com `make proto`
+
+- [ ] **Task 0125.2**: Implementar configuração do sistema (`internal/config/config.go`)
+  - [ ] Adicionar struct `LLMConfig` com DefaultModel, FallbackModel, Timeout, MaxRetries
+  - [ ] Adicionar `TaskTypes map[string]TaskLLMConfig` para configuração por tipo de task
+  - [ ] Adicionar `ModelParams map[string]ModelParams` para parâmetros específicos de modelo
+  - [ ] Integrar `LLM LLMConfig` na `WorkerConfig`
+
+- [ ] **Task 0125.3**: Criar service de resolução (`internal/llm/resolver.go`)
+  - [ ] Implementar `ConfigResolver` struct com cache
+  - [ ] Implementar `ResolveConfig(ctx, userID, taskType)` com hierarquia
+  - [ ] Implementar cache com TTL e invalidação inteligente
+  - [ ] Testes unitários para algoritmo de resolução
+
+- [ ] **Task 0125.4**: Modificar OllamaService (`internal/ai/ollama.go`)
+  - [ ] Refatorar `GenerateInsight` para `GenerateInsightWithConfig`
+  - [ ] Implementar fallback automático para modelo secundário
+  - [ ] Remover modelo hardcoded de todas as funções
+  - [ ] Adicionar logs detalhados sobre modelo usado e fallbacks
+
+#### 📋 **Fase 2: Integration (1-2 semanas)**
+- [ ] **Task 0125.5**: Database schema para preferências de usuário
+  - [ ] Criar migration para tabela `user_llm_preferences`
+  - [ ] Campos: user_id, preferred_model, fallback_model, timeout_seconds, max_retries, task_type_configs (JSONB)
+  - [ ] Índices de performance e constraints de validação
+  - [ ] Trigger para updated_at
+
+- [ ] **Task 0125.6**: Integrar ConfigResolver no Worker (`internal/worker/client.go`)
+  - [ ] Modificar `processInsightTask` para usar configuração dinâmica
+  - [ ] Implementar `getDefaultLLMConfig` por TaskType
+  - [ ] Converter protobuf LLMConfig para configuração interna
+  - [ ] Atualizar registro do worker com modelos suportados
+
+- [ ] **Task 0125.7**: Implementar configuração por TaskType
+  - [ ] Carregar configurações do arquivo YAML/env vars
+  - [ ] Mapear TaskType enum para configurações específicas
+  - [ ] Validar modelos disponíveis na startup
+  - [ ] Testes de integração com diferentes configurações
+
+#### 📋 **Fase 3: User Configuration (1-2 semanas)**
+- [ ] **Task 0125.8**: Service layer para LLM config (`internal/services/llm_service.go`)
+  - [ ] Implementar `LLMConfigService` com CRUD operations
+  - [ ] `GetUserLLMConfig`, `UpdateUserLLMConfig`, `DeleteUserLLMConfig`
+  - [ ] `ResolveConfigForTask`, `ValidateModel`, `ListAvailableModels`
+  - [ ] Integração com ConfigResolver
+
+- [ ] **Task 0125.9**: API endpoints (`internal/handlers/llm_config.go`)
+  - [ ] `GET /v1/users/llm-config` - Obter configuração atual
+  - [ ] `PUT /v1/users/llm-config` - Atualizar configuração
+  - [ ] `DELETE /v1/users/llm-config` - Resetar para padrão
+  - [ ] `GET /v1/llm/models` - Listar modelos disponíveis
+  - [ ] `GET /v1/llm/config/preview` - Preview de configuração
+
+- [ ] **Task 0125.10**: SQLC queries para LLM preferences
+  - [ ] Queries CRUD para `user_llm_preferences`
+  - [ ] Queries para validação de modelos
+  - [ ] Queries para estatísticas de uso
+  - [ ] Regenerar com `make sqlc`
+
+#### 📋 **Fase 4: Production Ready (1 semana)**
+- [ ] **Task 0125.11**: Observabilidade e monitoring
+  - [ ] Métricas de uso por modelo via Prometheus
+  - [ ] Alertas para fallbacks frequentes
+  - [ ] Dashboard de configurações ativas
+  - [ ] Logs estruturados com modelo usado
+
+- [ ] **Task 0125.12**: Testes comprehensivos
+  - [ ] Testes unitários para ConfigResolver
+  - [ ] Testes de integração com diferentes configurações
+  - [ ] Testes end-to-end via Bruno collection
+  - [ ] Testes de performance com diferentes modelos
+  - [ ] Chaos engineering para cenários de fallback
+
+- [ ] **Task 0125.13**: Configuração de ambiente
+  - [ ] Variáveis de ambiente para configuração padrão
+  - [ ] Arquivo YAML de configuração (`config/llm.yaml`)
+  - [ ] Docker compose com configurações de exemplo
+  - [ ] Documentação de deployment
+
+- [ ] **Task 0125.14**: Documentação e deployment
+  - [ ] Atualizar documentação da API
+  - [ ] Guia de migração do sistema atual
+  - [ ] Bruno collection com novos endpoints
+  - [ ] Deploy em staging e validação
+  - [ ] Deploy em production com rollback plan
+
+**Dependencies**:
+- Depende do sistema atual de tasks e insights estar estável
+- Requer que Ollama esteja configurado com múltiplos modelos
+- Necessita de database migration bem testada
+
+**Acceptance Criteria**:
+- [ ] Nenhum modelo hardcoded no código
+- [ ] Configuração hierárquica funcional: User > TaskType > System
+- [ ] Fallback automático implementado e testado
+- [ ] APIs para gerenciamento de configuração
+- [ ] Performance igual ou melhor que sistema atual
+- [ ] Backward compatibility durante migração
+- [ ] Documentação completa e testes abrangentes
+
+**Notes**:
+- Implementação incremental com rollback em cada fase
+- Manter sistema atual funcionando durante desenvolvimento
+- Validar modelos na startup para evitar erros em runtime
+- Cache para otimizar performance da resolução hierárquica
+
 ### 🎯 Task 0130: Dynamic Professional Role Templates & AI Content Generation
 **Priority**: HIGH
 **Estimated Effort**: 3-4 weeks
