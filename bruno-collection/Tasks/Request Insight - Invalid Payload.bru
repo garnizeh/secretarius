@@ -1,0 +1,34 @@
+meta {
+  name: Request Insight - Invalid Payload
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/v1/tasks/insights
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{access_token}}
+}
+
+body:json {
+  {
+    "user_id": "",
+    "entry_ids": [],
+    "insight_type": ""
+  }
+}
+
+tests {
+  test("Status should be 400 (Bad Request)", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("Should return validation error", function() {
+    expect(res.getBody()).to.have.property('error');
+  });
+}

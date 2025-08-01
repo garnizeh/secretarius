@@ -138,6 +138,8 @@ func SetupRoutes(
 	// Worker and task management routes (protected)
 	if grpcManager != nil {
 		SetupWorkerRoutes(protected, grpcManager)
+	} else {
+		logger.Warn("gRPC manager is nil, skipping worker routes setup")
 	}
 
 	// Swagger documentation endpoint (no auth required)

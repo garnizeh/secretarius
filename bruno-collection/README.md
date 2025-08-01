@@ -47,7 +47,20 @@ A collection está organizada nas seguintes pastas:
 - **Update Tag**: Atualiza uma tag existente
 - **Delete Tag**: Remove uma tag
 
-### 👤 Users
+### � Workers
+- **Get Active Workers**: Lista workers ativos e suas informações
+- **Worker Health Check**: Verifica o status de saúde do sistema de workers
+
+### 📋 Tasks
+- **Request Insight Generation**: Solicita geração de insights com IA
+- **Request Weekly Report**: Solicita geração de relatório semanal
+- **Get Task Result**: Obtém resultado de uma task específica
+- **Get Task Result by Report ID**: Obtém resultado usando ID do relatório
+- **Request Insight - Invalid Payload**: Teste com payload inválido
+- **Request Report - Invalid Date Format**: Teste com formato de data inválido
+- **Get Task Result - Nonexistent Task**: Teste com task inexistente
+
+### �👤 Users
 - **Get Profile**: Obtém o perfil do usuário
 - **Update Profile**: Atualiza informações do perfil
 - **Change Password**: Altera a senha do usuário
@@ -150,11 +163,80 @@ Cada requisição inclui testes básicos que verificam:
 - **duration_minutes**: Calculado automaticamente pelo sistema
 - **tags**: Array de strings para categorização flexível
 
+## 🚀 Novos Endpoints: Workers e Tasks
+
+### Workers API
+
+Os endpoints de workers permitem monitorar e gerenciar o sistema distribuído:
+
+```bash
+# Listar workers ativos
+GET /v1/workers
+
+# Verificar saúde do sistema de workers
+GET /v1/workers/health
+```
+
+### Tasks API
+
+Os endpoints de tasks permitem solicitar processamento assíncrono com IA:
+
+```bash
+# Solicitar geração de insights
+POST /v1/tasks/insights
+{
+  "user_id": "uuid-do-usuario",
+  "entry_ids": ["uuid1", "uuid2"],
+  "insight_type": "productivity",
+  "context": "Análise semanal"
+}
+
+# Solicitar relatório semanal
+POST /v1/tasks/reports
+{
+  "user_id": "uuid-do-usuario",
+  "week_start": "2025-07-21",
+  "week_end": "2025-07-27"
+}
+
+# Obter resultado da task
+GET /v1/tasks/{task_id}/result
+```
+
+### Fluxo de Trabalho com Tasks
+
+1. **Autenticar**: Fazer login para obter tokens
+2. **Criar entrada de log**: Ter algumas entradas para análise
+3. **Solicitar insight**: Usar POST /v1/tasks/insights
+4. **Aguardar processamento**: A task é processada pelo worker
+5. **Obter resultado**: Usar GET /v1/tasks/{task_id}/result
+
+### Exemplos de Insight Types
+
+- `productivity` - Análise de produtividade geral
+- `patterns` - Identificação de padrões de trabalho
+- `recommendations` - Sugestões de melhoria
+- `summary` - Resumo de atividades
+
+## Dicas
+
+### Campos de Entrada de Log
+
+- **type**: Tipo de atividade (development, meeting, code_review, debugging, documentation, testing, deployment, research, planning, learning, maintenance, support, other)
+- **value_rating**: Valor percebido da atividade (low, medium, high, critical)
+- **impact_level**: Nível de impacto (personal, team, department, company)
+- **start_time/end_time**: Horários em formato ISO 8601 (ex: 2025-07-31T09:00:00Z)
+- **duration_minutes**: Calculado automaticamente pelo sistema
+- **tags**: Array de strings para categorização flexível
+
+### Workflow Recomendado
+
 1. **Ordem das Requisições**: Comece sempre com autenticação
 2. **IDs de Teste**: Use os IDs de exemplo fornecidos ou capture-os das respostas
 3. **Filtros**: Muitas listagens suportam filtros via query parameters
 4. **Paginação**: Use `limit` e `offset` para paginar resultados
 5. **Tokens**: Os tokens são automaticamente gerenciados pelos scripts
+6. **Tasks Assíncronas**: Use os endpoints de tasks para processamento com IA
 6. **Horários**: Use sempre formato ISO 8601 com timezone (Z para UTC)
 
 ## Troubleshooting

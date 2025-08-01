@@ -160,7 +160,7 @@ func SetupWorkerRoutes(router *gin.RouterGroup, grpcManager *grpc.Manager) {
 	// Worker management routes
 	workers := router.Group("/workers")
 	{
-		workers.GET("/", workerHandlers.GetActiveWorkers)
+		workers.GET("", workerHandlers.GetActiveWorkers)
 		workers.GET("/health", workerHandlers.HealthCheck)
 	}
 

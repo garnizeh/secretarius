@@ -1,0 +1,31 @@
+meta {
+  name: Get Active Workers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/workers
+  body: none
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{access_token}}
+}
+
+tests {
+  test("Status should be 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Should return workers array", function() {
+    expect(res.getBody()).to.have.property('workers');
+    expect(res.getBody()).to.have.property('count');
+  });
+
+  test("Workers should be an array", function() {
+    expect(res.getBody().workers).to.be.an('array');
+  });
+}
