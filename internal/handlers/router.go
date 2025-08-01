@@ -45,7 +45,13 @@ func SetupRoutes(
 	r.Use(middleware.SecurityHeaders(cfg.Security))
 
 	// Add rate limiting middleware
-	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimit, logger)
+	rateLimitConfig := cfg.RateLimit
+	if redisClient == nil {
+		// Disable Redis-based rate limiting when Redis is unavailable
+		rateLimitConfig.RedisEnabled = false
+		logger.Warn("Rate limiting will use fallback mode (no-op) due to Redis unavailability")
+	}
+	rateLimiter := middleware.NewRateLimiter(redisClient, rateLimitConfig, logger)
 	r.Use(rateLimiter.Middleware())
 
 	// Create validation middleware instance
