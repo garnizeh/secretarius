@@ -1,0 +1,49 @@
+meta {
+  name: Request Weekly Report
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/tasks/reports
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{access_token}}
+}
+
+body:json {
+  {
+    "user_id": "{{user_id}}",
+    "week_start": "2025-07-21",
+    "week_end": "2025-07-27"
+  }
+}
+
+tests {
+  test("Status should be 202 (Accepted)", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+
+  test("Should return task_id and message", function() {
+    expect(res.getBody()).to.have.property('task_id');
+    expect(res.getBody()).to.have.property('message');
+  });
+
+  test("Task ID should be a string", function() {
+    expect(res.getBody().task_id).to.be.a('string');
+  });
+
+  test("Message should confirm task queued", function() {
+    expect(res.getBody().message).to.include('queued successfully');
+  });
+}
+
+script:post-response {
+  if (res.getStatus() === 202) {
+    bru.setVar("report_task_id", res.getBody().task_id);
+  }
+}
