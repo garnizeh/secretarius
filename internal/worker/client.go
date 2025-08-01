@@ -590,10 +590,16 @@ func (c *Client) processInsightTask(ctx context.Context, task *workerpb.TaskRequ
 		return "", fmt.Errorf("failed to unmarshal insight request: %w", err)
 	}
 
+	// Validate the insight request
+	if err := c.aiService.ValidateInsightRequest(&insightReq); err != nil {
+		return "", fmt.Errorf("invalid insight request: %w", err)
+	}
+
 	// Update progress
 	c.updateTaskProgress(ctx, task.TaskId, 25, "Starting AI insight generation")
 
-	insight, err := c.aiService.GenerateInsight(ctx, insightReq.Prompt)
+	// Use the enhanced context-aware insight generation
+	insight, err := c.aiService.GenerateInsightWithContext(ctx, &insightReq)
 	if err != nil {
 		return "", fmt.Errorf("AI insight generation failed: %w", err)
 	}
