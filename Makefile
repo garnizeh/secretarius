@@ -1,7 +1,7 @@
 # EngLog Makefile
 # "Make it so!" - Jean-Luc Picard 🚀
 
-.PHONY: help build clean test test-unit test-integration test-e2e test-coverage test-race test-security test-performance test-clean test-docker-up test-docker-down test-fix generate-mocks lint dev-up dev-down dev-restart prod-api-up prod-api-down prod-worker-up prod-worker-down deploy-machine1 deploy-machine2 run-api run-worker generate migrate-up migrate-down migrate-status migrate-reset migrate-create sqlc proto swagger docker-build docker-push git-clean-branches
+.PHONY: help build clean test test-unit test-integration test-e2e test-coverage test-race test-security test-performance test-clean test-docker-up test-docker-down test-fix generate-mocks lint dev-up dev-down dev-restart prod-api-up prod-api-down prod-worker-up prod-worker-down deploy-machine1 deploy-machine2 run-api run-worker health-api generate migrate-up migrate-down migrate-status migrate-reset migrate-create sqlc proto swagger docker-build docker-push git-clean-branches
 
 # Default target
 .DEFAULT_GOAL := help
@@ -270,6 +270,15 @@ watch-worker:
 	@echo "Starting worker server with live reload..."
 	@which air > /dev/null || go install github.com/air-verse/air@latest
 	@air -c .air.worker.toml
+
+## health-api: Check if API server is running and healthy
+health-api:
+	@echo "Checking API server health..."
+	@curl -f -s http://localhost:8080/health > /tmp/health_check.json && \
+		echo "✅ API server is healthy and running!" && \
+		echo "Response: $$(cat /tmp/health_check.json)" && \
+		rm -f /tmp/health_check.json || \
+		(echo "❌ API server is not responding. Make sure it's running with 'make dev-up' and 'make watch-api'" && exit 1)
 
 ## docker-build: Build Docker images
 docker-build:
