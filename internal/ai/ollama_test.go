@@ -127,7 +127,7 @@ func TestGenerateInsight(t *testing.T) {
 				var req GenerateRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
 				if err == nil {
-					assert.Equal(t, "llama3.2:3b", req.Model)
+					assert.Equal(t, "qwen2.5-coder:7b", req.Model)
 					assert.Equal(t, tt.prompt, req.Prompt)
 					assert.False(t, req.Stream)
 				}
@@ -246,7 +246,7 @@ func TestGenerateInsightWithContext(t *testing.T) {
 	}
 }
 
-// TestBuildEnhancedPrompt tests the prompt enhancement functionality
+// TestBuildEnhancedPrompt tests the prompt enhancement functionality with complete request information
 func TestBuildEnhancedPrompt(t *testing.T) {
 	logger := logging.NewTestLogger()
 	service, err := NewOllamaService("http://localhost:11434", logger)
@@ -255,55 +255,110 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 	tests := []struct {
 		name     string
 		request  *InsightRequest
-		expected string
+		contains []string // What the result should contain
 	}{
 		{
-			name: "String context",
+			name: "Complete request with string context",
 			request: &InsightRequest{
-				Prompt:  "Base prompt",
-				Context: "String context data",
+				Prompt:      "Analyze my productivity",
+				UserID:      "user-123",
+				EntryIDs:    []string{"entry-1", "entry-2"},
+				InsightType: "productivity",
+				Context:     "String context data",
 			},
-			expected: "Base prompt\n\nContext: String context data",
+			contains: []string{
+				"Analyze my productivity",
+				"User ID: user-123",
+				"Insight Type: productivity",
+				"Number of Log Entries: 2",
+				"Log Entry IDs: [entry-1, entry-2]",
+				"Focus on efficiency patterns",
+				"Context: String context data",
+				"Key findings and patterns identified",
+			},
 		},
 		{
-			name: "Empty string context",
+			name: "Request with structured context",
 			request: &InsightRequest{
-				Prompt:  "Base prompt",
-				Context: "",
-			},
-			expected: "Base prompt",
-		},
-		{
-			name: "Structured context",
-			request: &InsightRequest{
-				Prompt: "Base prompt",
+				Prompt:      "Base prompt",
+				UserID:      "user-456",
+				EntryIDs:    []string{"entry-1"},
+				InsightType: "skill_development",
 				Context: map[string]any{
 					"key1": "value1",
 					"key2": 42,
 				},
 			},
-			expected: "Base prompt\n\nStructured Context:\n{\n  \"key1\": \"value1\",\n  \"key2\": 42\n}",
-		},
-		{
-			name: "Empty structured context",
-			request: &InsightRequest{
-				Prompt:  "Base prompt",
-				Context: map[string]any{},
+			contains: []string{
+				"Base prompt",
+				"User ID: user-456",
+				"Insight Type: skill_development",
+				"Number of Log Entries: 1",
+				"Identify learning opportunities",
+				"Structured Context:",
+				"\"key1\": \"value1\"",
+				"\"key2\": 42",
 			},
-			expected: "Base prompt",
 		},
 		{
-			name: "Nil context",
+			name: "Request with many entry IDs (truncated display)",
 			request: &InsightRequest{
-				Prompt:  "Base prompt",
-				Context: nil,
+				Prompt:      "Weekly analysis",
+				UserID:      "user-789",
+				EntryIDs:    []string{"e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8"},
+				InsightType: "time_management",
+				Context:     nil,
 			},
-			expected: "Base prompt",
+			contains: []string{
+				"Weekly analysis",
+				"User ID: user-789",
+				"Number of Log Entries: 8",
+				"[e1, e2, e3, ... (3 more), e7, e8]",
+				"time allocation across different",
+				"Output Instructions",
+			},
 		},
 		{
-			name: "Custom struct context",
+			name: "Request with minimal data",
 			request: &InsightRequest{
-				Prompt: "Base prompt",
+				Prompt:      "Simple prompt",
+				UserID:      "",
+				EntryIDs:    []string{},
+				InsightType: "",
+				Context:     nil,
+			},
+			contains: []string{
+				"Simple prompt",
+				"User ID: ",
+				"Number of Log Entries: 0",
+				"Provide comprehensive analysis",
+				"Output Instructions",
+			},
+		},
+		{
+			name: "Request with team collaboration type",
+			request: &InsightRequest{
+				Prompt:      "Team work analysis",
+				UserID:      "team-lead",
+				EntryIDs:    []string{"meeting-1", "standup-2"},
+				InsightType: "team_collaboration",
+				Context:     "Weekly team retrospective",
+			},
+			contains: []string{
+				"Team work analysis",
+				"Insight Type: team_collaboration",
+				"Focus on collaboration patterns",
+				"team interactions",
+				"Context: Weekly team retrospective",
+			},
+		},
+		{
+			name: "Request with custom struct context",
+			request: &InsightRequest{
+				Prompt:      "Custom analysis",
+				UserID:      "user-custom",
+				EntryIDs:    []string{"custom-1"},
+				InsightType: "productivity",
 				Context: struct {
 					Name  string `json:"name"`
 					Value int    `json:"value"`
@@ -312,19 +367,73 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 					Value: 123,
 				},
 			},
-			expected: "Base prompt\n\nContext Data:\n{\n  \"name\": \"test\",\n  \"value\": 123\n}",
+			contains: []string{
+				"Custom analysis",
+				"Context Data:",
+				"\"name\": \"test\"",
+				"\"value\": 123",
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := service.buildEnhancedPrompt(tt.request)
-			assert.Equal(t, tt.expected, result)
+
+			// Check that all expected content is present
+			for _, expected := range tt.contains {
+				assert.Contains(t, result, expected,
+					"Expected '%s' to be found in result:\n%s", expected, result)
+			}
+
+			// Verify basic structure
+			assert.Contains(t, result, tt.request.Prompt, "Should contain original prompt")
+			assert.Contains(t, result, "--- Request Information ---", "Should contain request info section")
+			assert.Contains(t, result, "--- Output Instructions ---", "Should contain output instructions")
 		})
 	}
 }
 
-// TestValidateInsightRequest tests the insight request validation
+// TestBuildEnhancedPromptExample demonstrates how the enhanced prompt looks
+func TestBuildEnhancedPromptExample(t *testing.T) {
+	logger := logging.NewTestLogger()
+	service, err := NewOllamaService("http://localhost:11434", logger)
+	require.NoError(t, err)
+
+	// Create a comprehensive example request
+	req := &InsightRequest{
+		Prompt:      "Please analyze my productivity patterns and provide actionable insights for improvement.",
+		UserID:      "user-12345",
+		EntryIDs:    []string{"entry-001", "entry-002", "entry-003", "entry-004", "entry-005", "entry-006"},
+		InsightType: "productivity",
+		Context: map[string]any{
+			"time_blocks": []string{"morning", "afternoon", "evening"},
+			"focus_areas": []string{"development", "meetings", "documentation"},
+			"date_range": map[string]string{
+				"start": "2025-07-01",
+				"end":   "2025-07-31",
+			},
+			"performance_metrics": map[string]float64{
+				"avg_daily_hours":    8.5,
+				"productivity_score": 0.85,
+			},
+		},
+	}
+
+	result := service.buildEnhancedPrompt(req)
+
+	// Log the result for demonstration purposes
+	t.Logf("=== Enhanced Prompt Example ===\n%s\n=== End of Example ===", result)
+
+	// Verify it contains key sections
+	assert.Contains(t, result, "Please analyze my productivity patterns")
+	assert.Contains(t, result, "User ID: user-12345")
+	assert.Contains(t, result, "Insight Type: productivity")
+	assert.Contains(t, result, "Number of Log Entries: 6")
+	assert.Contains(t, result, "Focus on efficiency patterns")
+	assert.Contains(t, result, "time_blocks")
+	assert.Contains(t, result, "performance_metrics")
+} // TestValidateInsightRequest tests the insight request validation
 func TestValidateInsightRequest(t *testing.T) {
 	logger := logging.NewTestLogger()
 	service, err := NewOllamaService("http://localhost:11434", logger)
@@ -649,7 +758,7 @@ func TestHealthCheck(t *testing.T) {
 				var req GenerateRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
 				if err == nil {
-					assert.Equal(t, "llama3.2:3b", req.Model)
+					assert.Equal(t, "qwen2.5-coder:7b", req.Model)
 					assert.Equal(t, "Hello", req.Prompt)
 					assert.False(t, req.Stream)
 				}
@@ -721,7 +830,7 @@ func TestGenerateWithTimeout(t *testing.T) {
 			require.NoError(t, err)
 
 			ctx := context.Background()
-			response, err := service.generateWithTimeout(ctx, "llama3.2:3b", "test prompt", tt.timeout)
+			response, err := service.generateWithTimeout(ctx, "qwen2.5-coder:7b", "test prompt", tt.timeout)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -868,7 +977,7 @@ func TestJSONSerialization(t *testing.T) {
 		{
 			name: "GenerateRequest",
 			object: &GenerateRequest{
-				Model:  "llama3.2:3b",
+				Model:  "qwen2.5-coder:7b",
 				Prompt: "test prompt",
 				Stream: false,
 			},

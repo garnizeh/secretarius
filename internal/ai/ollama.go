@@ -93,7 +93,7 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 
 	s.logger.Info("Starting insight generation",
 		"prompt_length", len(prompt),
-		"model", "llama3.2:3b")
+		"model", "qwen2.5-coder:7b")
 
 	// Retry configuration for AI operations
 	maxRetries := 3
@@ -114,7 +114,7 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 		default:
 		}
 
-		response, err := s.generateWithTimeout(ctx, "llama3.2:3b", prompt, 60*time.Second)
+		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 60*time.Second)
 		if err == nil {
 			s.logger.Info("Insight generation successful",
 				"attempt", attempt+1,
@@ -180,50 +180,128 @@ func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *Ins
 	return s.GenerateInsight(ctx, enhancedPrompt)
 }
 
-// buildEnhancedPrompt creates an enhanced prompt using the structured context
+// buildEnhancedPrompt creates an enhanced prompt using all pertinent information from the request
 func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
-	basePrompt := req.Prompt
+	var promptBuilder bytes.Buffer
 
-	// Handle different context types
-	switch contextData := req.Context.(type) {
-	case string:
-		// Backward compatibility - simple string context
-		if contextData != "" {
-			return fmt.Sprintf("%s\n\nContext: %s", basePrompt, contextData)
+	// Start with the base prompt
+	promptBuilder.WriteString(req.Prompt)
+
+	// Add structured request information to enhance AI understanding
+	promptBuilder.WriteString("\n\n--- Request Information ---")
+	promptBuilder.WriteString(fmt.Sprintf("\nUser ID: %s", req.UserID))
+	promptBuilder.WriteString(fmt.Sprintf("\nInsight Type: %s", req.InsightType))
+	promptBuilder.WriteString(fmt.Sprintf("\nNumber of Log Entries: %d", len(req.EntryIDs)))
+
+	// Include entry IDs for reference (useful for the AI to understand scope)
+	if len(req.EntryIDs) > 0 {
+		promptBuilder.WriteString("\nLog Entry IDs: ")
+		if len(req.EntryIDs) <= 5 {
+			// Show all IDs if there are 5 or fewer
+			promptBuilder.WriteString(fmt.Sprintf("[%s]", joinStrings(req.EntryIDs, ", ")))
+		} else {
+			// Show first 3 and last 2 with count for larger sets
+			firstThree := req.EntryIDs[:3]
+			lastTwo := req.EntryIDs[len(req.EntryIDs)-2:]
+			promptBuilder.WriteString(fmt.Sprintf("[%s, ... (%d more), %s]",
+				joinStrings(firstThree, ", "),
+				len(req.EntryIDs)-5,
+				joinStrings(lastTwo, ", ")))
 		}
-		return basePrompt
+	}
 
-	case map[string]any:
-		// Structured context - serialize to JSON for AI processing
-		if len(contextData) > 0 {
+	// Add insight type specific instructions
+	promptBuilder.WriteString(fmt.Sprintf("\n\nInsight Generation Guidelines for '%s':", req.InsightType))
+	switch req.InsightType {
+	case "productivity":
+		promptBuilder.WriteString("\n- Focus on efficiency patterns, time utilization, and value delivery")
+		promptBuilder.WriteString("\n- Identify high-impact activities and optimization opportunities")
+		promptBuilder.WriteString("\n- Analyze work-life balance and sustainable productivity patterns")
+	case "skill_development":
+		promptBuilder.WriteString("\n- Identify learning opportunities and skill gaps")
+		promptBuilder.WriteString("\n- Track progress in technical and soft skills")
+		promptBuilder.WriteString("\n- Suggest development paths and learning resources")
+	case "time_management":
+		promptBuilder.WriteString("\n- Analyze time allocation across different activity types")
+		promptBuilder.WriteString("\n- Identify time drains and efficiency bottlenecks")
+		promptBuilder.WriteString("\n- Suggest schedule optimization strategies")
+	case "team_collaboration":
+		promptBuilder.WriteString("\n- Focus on collaboration patterns and team interactions")
+		promptBuilder.WriteString("\n- Identify communication effectiveness and team dynamics")
+		promptBuilder.WriteString("\n- Suggest improvements for team productivity")
+	default:
+		promptBuilder.WriteString("\n- Provide comprehensive analysis based on the available data")
+		promptBuilder.WriteString("\n- Focus on actionable insights and practical recommendations")
+	}
+
+	// Handle context data - now as additional structured information
+	if req.Context != nil {
+		promptBuilder.WriteString("\n\n--- Additional Context ---")
+
+		switch contextData := req.Context.(type) {
+		case string:
+			// Backward compatibility - simple string context
+			if contextData != "" {
+				promptBuilder.WriteString(fmt.Sprintf("\nContext: %s", contextData))
+			}
+
+		case map[string]any:
+			// Structured context - serialize to JSON for AI processing
+			if len(contextData) > 0 {
+				contextJSON, err := json.MarshalIndent(contextData, "", "  ")
+				if err != nil {
+					s.logger.Warn("Failed to marshal context data, adding basic context info",
+						"error", err.Error())
+					promptBuilder.WriteString(fmt.Sprintf("\nStructured context provided (%d fields)", len(contextData)))
+				} else {
+					promptBuilder.WriteString(fmt.Sprintf("\nStructured Context:\n%s", string(contextJSON)))
+				}
+			}
+
+		default:
+			// Unknown context type - try to convert to JSON
+			s.logger.Warn("Unknown context type, attempting JSON serialization",
+				"type", fmt.Sprintf("%T", contextData))
+
 			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
 			if err != nil {
-				s.logger.Warn("Failed to marshal context data, using base prompt",
-					"error", err.Error())
-				return basePrompt
+				s.logger.Warn("Failed to serialize unknown context type, adding type info only",
+					"error", err.Error(),
+					"type", fmt.Sprintf("%T", contextData))
+				promptBuilder.WriteString(fmt.Sprintf("\nContext Type: %T (serialization failed)", contextData))
+			} else {
+				promptBuilder.WriteString(fmt.Sprintf("\nContext Data:\n%s", string(contextJSON)))
 			}
-			return fmt.Sprintf("%s\n\nStructured Context:\n%s", basePrompt, string(contextJSON))
 		}
-		return basePrompt
-
-	case nil:
-		// No context provided
-		return basePrompt
-
-	default:
-		// Unknown context type - try to convert to JSON
-		s.logger.Warn("Unknown context type, attempting JSON serialization",
-			"type", fmt.Sprintf("%T", contextData))
-
-		contextJSON, err := json.MarshalIndent(contextData, "", "  ")
-		if err != nil {
-			s.logger.Warn("Failed to serialize unknown context type, using base prompt",
-				"error", err.Error(),
-				"type", fmt.Sprintf("%T", contextData))
-			return basePrompt
-		}
-		return fmt.Sprintf("%s\n\nContext Data:\n%s", basePrompt, string(contextJSON))
 	}
+
+	// Add final instructions for consistent output format
+	promptBuilder.WriteString("\n\n--- Output Instructions ---")
+	promptBuilder.WriteString("\nPlease provide a comprehensive analysis that includes:")
+	promptBuilder.WriteString("\n1. Key findings and patterns identified")
+	promptBuilder.WriteString("\n2. Specific, actionable recommendations")
+	promptBuilder.WriteString("\n3. Confidence level in your analysis (high/medium/low)")
+	promptBuilder.WriteString("\n4. Suggested next steps or areas for deeper investigation")
+
+	return promptBuilder.String()
+}
+
+// joinStrings is a helper function to join string slices (similar to strings.Join but for clarity)
+func joinStrings(strs []string, separator string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+
+	var result bytes.Buffer
+	result.WriteString(strs[0])
+	for _, str := range strs[1:] {
+		result.WriteString(separator)
+		result.WriteString(str)
+	}
+	return result.String()
 }
 
 // ValidateInsightRequest validates the insight request structure
@@ -370,7 +448,7 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 		default:
 		}
 
-		response, err := s.generateWithTimeout(ctx, "llama3.2:3b", prompt, 90*time.Second)
+		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 90*time.Second)
 		if err == nil {
 			s.logger.Info("Weekly report generation successful",
 				"attempt", attempt+1,
@@ -427,7 +505,7 @@ func (s *OllamaService) HealthCheck(ctx context.Context) error {
 
 	// Simple health check by making a basic request
 	req := &GenerateRequest{
-		Model:  "llama3.2:3b",
+		Model:  "qwen2.5-coder:7b",
 		Prompt: "Hello",
 		Stream: false,
 	}
