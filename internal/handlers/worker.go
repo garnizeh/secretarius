@@ -49,7 +49,7 @@ func (h *WorkerHandlers) RequestInsightGeneration(c *gin.Context) {
 		UserID      string   `json:"user_id" binding:"required"`
 		EntryIDs    []string `json:"entry_ids" binding:"required"`
 		InsightType string   `json:"insight_type" binding:"required"`
-		Context     string   `json:"context"`
+		Context     any      `json:"context"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
