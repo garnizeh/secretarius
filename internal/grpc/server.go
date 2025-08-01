@@ -231,6 +231,25 @@ func (s *Server) StreamTasks(req *workerpb.StreamTasksRequest, stream workerpb.A
 		select {
 		case <-stream.Context().Done():
 			duration := time.Since(start)
+
+			// Remove worker from active list immediately upon disconnection
+			s.workersMutex.Lock()
+			if worker, exists := s.workers[req.WorkerId]; exists {
+				// Clear the stream reference
+				worker.TaskStream = nil
+				// Mark worker as unavailable (disconnected)
+				previousStatus := worker.Status
+				worker.Status = workerpb.WorkerStatus_WORKER_STATUS_UNAVAILABLE
+				// Update last heartbeat to current time for accurate logging
+				worker.LastHeartbeat = time.Now()
+
+				s.logger.WithContext(ctx).Info("Worker marked as disconnected",
+					"worker_id", req.WorkerId,
+					"previous_status", previousStatus,
+					"new_status", workerpb.WorkerStatus_WORKER_STATUS_UNAVAILABLE)
+			}
+			s.workersMutex.Unlock()
+
 			s.logger.WithContext(ctx).Info("Worker disconnected from task stream",
 				"worker_id", req.WorkerId,
 				"tasks_processed", tasksProcessed,
@@ -366,26 +385,86 @@ func (s *Server) HealthCheck(ctx context.Context, req *emptypb.Empty) (*workerpb
 	activeWorkers := len(s.workers)
 	totalTasksQueued := len(s.taskQueue)
 
-	// Count workers by status
+	// Count workers by status and collect service health
 	statusCounts := make(map[workerpb.WorkerStatus]int)
 	healthyWorkers := 0
+	services := make(map[string]string)
+
+	// Initialize service counters
+	ollamaHealthy := 0
+	ollamaTotal := 0
+	grpcHealthy := 0
+	grpcTotal := 0
 
 	for _, worker := range s.workers {
 		statusCounts[worker.Status]++
+
 		// Consider workers healthy if they've sent a heartbeat in the last 2 minutes
 		if time.Since(worker.LastHeartbeat) < time.Minute*2 {
 			healthyWorkers++
 		}
+
+		// Collect service health from worker stats
+		if worker.Stats != nil && worker.Stats.Services != nil {
+			// Check Ollama status from this worker
+			if ollamaStatus, exists := worker.Stats.Services["ollama"]; exists {
+				ollamaTotal++
+				if ollamaStatus == "healthy" {
+					ollamaHealthy++
+				}
+			}
+
+			// Check gRPC status from this worker
+			if grpcStatus, exists := worker.Stats.Services["grpc"]; exists {
+				grpcTotal++
+				if grpcStatus == "healthy" {
+					grpcHealthy++
+				}
+			}
+		}
 	}
 
-	services := make(map[string]string)
-	services["grpc"] = "healthy"
+	// Consolidate service health statuses
+	services["grpc_server"] = "healthy" // Our gRPC server is healthy if we can respond
 	services["task_queue"] = "healthy"
+
+	// Ollama service health based on worker reports
+	if ollamaTotal == 0 {
+		services["ollama"] = "unknown"
+	} else if ollamaHealthy == ollamaTotal {
+		services["ollama"] = "healthy"
+	} else if ollamaHealthy > 0 {
+		services["ollama"] = "degraded"
+	} else {
+		services["ollama"] = "unhealthy"
+	}
+
+	// Worker gRPC connections health
+	if grpcTotal == 0 {
+		services["worker_connections"] = "no_workers"
+	} else if grpcHealthy == grpcTotal {
+		services["worker_connections"] = "healthy"
+	} else if grpcHealthy > 0 {
+		services["worker_connections"] = "degraded"
+	} else {
+		services["worker_connections"] = "unhealthy"
+	}
+
 	s.workersMutex.RUnlock()
 
 	s.resultsMutex.RLock()
 	totalTaskResults := len(s.taskResults)
 	s.resultsMutex.RUnlock()
+
+	// Determine overall health status
+	overallStatus := "healthy"
+	if activeWorkers == 0 {
+		overallStatus = "warning"
+	} else if services["ollama"] == "unhealthy" || services["worker_connections"] == "unhealthy" {
+		overallStatus = "unhealthy"
+	} else if services["ollama"] == "degraded" || services["worker_connections"] == "degraded" {
+		overallStatus = "degraded"
+	}
 
 	duration := time.Since(start)
 
@@ -394,10 +473,13 @@ func (s *Server) HealthCheck(ctx context.Context, req *emptypb.Empty) (*workerpb
 		"healthy_workers", healthyWorkers,
 		"tasks_queued", totalTasksQueued,
 		"task_results", totalTaskResults,
+		"ollama_health", services["ollama"],
+		"worker_connections_health", services["worker_connections"],
+		"overall_status", overallStatus,
 		"duration_ms", duration.Milliseconds())
 
 	return &workerpb.HealthCheckResponse{
-		Status:        "healthy",
+		Status:        overallStatus,
 		Timestamp:     timestamppb.Now(),
 		Services:      services,
 		ActiveWorkers: int32(activeWorkers),
@@ -501,8 +583,15 @@ func (s *Server) GetActiveWorkers() map[string]*WorkerInfo {
 	stalledWorkers := 0
 
 	for id, worker := range s.workers {
-		// Only include workers that have sent a heartbeat recently
-		if time.Since(worker.LastHeartbeat) < time.Minute*2 {
+		// Only include workers that:
+		// 1. Have sent a heartbeat recently (within 2 minutes)
+		// 2. Are not marked as unavailable (disconnected)
+		// 3. Are not in error state
+		isRecentHeartbeat := time.Since(worker.LastHeartbeat) < time.Minute*2
+		isActiveStatus := worker.Status != workerpb.WorkerStatus_WORKER_STATUS_UNAVAILABLE &&
+			worker.Status != workerpb.WorkerStatus_WORKER_STATUS_ERROR
+
+		if isRecentHeartbeat && isActiveStatus {
 			workers[id] = worker
 		} else {
 			stalledWorkers++
@@ -556,4 +645,67 @@ func (s *Server) Start(address string) error {
 	}
 
 	return nil
+}
+
+// CleanupStalledWorkers removes workers that have been disconnected for too long
+func (s *Server) CleanupStalledWorkers() {
+	start := time.Now()
+
+	s.workersMutex.Lock()
+	defer s.workersMutex.Unlock()
+
+	var removedWorkers []string
+	stalledThreshold := time.Minute * 5 // Remove workers offline for more than 5 minutes
+
+	for id, worker := range s.workers {
+		timeSinceLastHeartbeat := time.Since(worker.LastHeartbeat)
+		isStalled := timeSinceLastHeartbeat > stalledThreshold
+		isUnavailable := worker.Status == workerpb.WorkerStatus_WORKER_STATUS_UNAVAILABLE
+
+		// Remove workers that are either:
+		// 1. Offline for more than 5 minutes, OR
+		// 2. Marked as unavailable and offline for more than 1 minute
+		shouldRemove := isStalled || (isUnavailable && timeSinceLastHeartbeat > time.Minute)
+
+		if shouldRemove {
+			delete(s.workers, id)
+			removedWorkers = append(removedWorkers, id)
+
+			s.logger.Info("Removed stalled worker",
+				"worker_id", id,
+				"status", worker.Status.String(),
+				"time_since_heartbeat_minutes", timeSinceLastHeartbeat.Minutes(),
+				"was_unavailable", isUnavailable)
+		}
+	}
+
+	if len(removedWorkers) > 0 {
+		s.logger.Info("Worker cleanup completed",
+			"removed_workers", removedWorkers,
+			"total_removed", len(removedWorkers),
+			"cleanup_duration_ms", time.Since(start).Milliseconds())
+	}
+}
+
+// StartPeriodicCleanup starts a background goroutine for periodic worker cleanup
+func (s *Server) StartPeriodicCleanup(ctx context.Context) {
+	cleanupInterval := time.Minute * 2 // Run cleanup every 2 minutes
+
+	go func() {
+		ticker := time.NewTicker(cleanupInterval)
+		defer ticker.Stop()
+
+		s.logger.Info("Started periodic worker cleanup",
+			"cleanup_interval_minutes", cleanupInterval.Minutes())
+
+		for {
+			select {
+			case <-ctx.Done():
+				s.logger.Info("Stopping periodic worker cleanup")
+				return
+			case <-ticker.C:
+				s.CleanupStalledWorkers()
+			}
+		}
+	}()
 }

@@ -138,6 +138,7 @@ message WorkerStats {
   float memory_usage = 5;
   google.protobuf.Timestamp uptime = 6;
   string grpc_connection_status = 7;
+  map<string, string> services = 8; // service_name -> status (e.g., "ollama" -> "healthy")
 }
 
 // Enums

@@ -271,7 +271,25 @@ watch-worker:
 	@which air > /dev/null || go install github.com/air-verse/air@latest
 	@air -c .air.worker.toml
 
-## health-api: Check if API server is running and healthy
+## debug-api: Run API server with debug flags and live reload
+debug-api:
+	@echo "Starting API server with debug mode and live reload..."
+	@which air > /dev/null || go install github.com/air-verse/air@latest
+	@air -c .air.debug.toml
+
+## dev-api: Alias for watch-api (backward compatibility)
+dev-api: watch-api
+
+## dev-worker: Alias for watch-worker (backward compatibility)
+dev-worker: watch-worker
+
+## air-dev: Interactive Air development helper
+air-dev:
+	@./scripts/air-dev.sh
+
+## air-both: Start both API and Worker with Air
+air-both:
+	@./scripts/air-dev.sh both## health-api: Check if API server is running and healthy
 health-api:
 	@echo "Checking API server health..."
 	@curl -f -s http://localhost:8080/health > /tmp/health_check.json && \
