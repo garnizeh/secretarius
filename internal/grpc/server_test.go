@@ -533,11 +533,17 @@ func TestServer_HealthCheck(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
-		assert.Equal(t, "healthy", resp.Status)
+		assert.Equal(t, "warning", resp.Status) // Status is warning when no workers are available
 		assert.NotNil(t, resp.Timestamp)
 		assert.Equal(t, int32(0), resp.ActiveWorkers)
-		assert.Contains(t, resp.Services, "grpc")
-		assert.Equal(t, "healthy", resp.Services["grpc"])
+		assert.Contains(t, resp.Services, "grpc_server")
+		assert.Equal(t, "healthy", resp.Services["grpc_server"])
+		assert.Contains(t, resp.Services, "task_queue")
+		assert.Equal(t, "healthy", resp.Services["task_queue"])
+		assert.Contains(t, resp.Services, "ollama")
+		assert.Equal(t, "unknown", resp.Services["ollama"]) // No workers means no Ollama status
+		assert.Contains(t, resp.Services, "worker_connections")
+		assert.Equal(t, "no_workers", resp.Services["worker_connections"])
 	})
 
 	t.Run("health check with registered workers", func(t *testing.T) {

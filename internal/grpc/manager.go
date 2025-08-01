@@ -106,6 +106,9 @@ func (m *Manager) Start() error {
 		}
 	}()
 
+	// Start periodic worker cleanup
+	m.server.StartPeriodicCleanup(context.Background())
+
 	return nil
 }
 

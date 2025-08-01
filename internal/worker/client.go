@@ -344,6 +344,28 @@ func (c *Client) sendHeartbeatWithRetry(ctx context.Context) error {
 
 func (c *Client) doSendHeartbeat(ctx context.Context) error {
 	c.stats.mutex.RLock()
+
+	// Check service health statuses
+	services := make(map[string]string)
+
+	// Check Ollama health
+	ollamaCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := c.aiService.HealthCheck(ollamaCtx); err != nil {
+		services["ollama"] = "unhealthy"
+		c.logger.Warn("Ollama health check failed", "error", err.Error())
+	} else {
+		services["ollama"] = "healthy"
+	}
+
+	// Check gRPC connection
+	if c.isConnected() {
+		services["grpc"] = "healthy"
+	} else {
+		services["grpc"] = "unhealthy"
+	}
+
 	stats := &workerpb.WorkerStats{
 		ActiveTasks:          c.stats.ActiveTasks,
 		CompletedTasks:       c.stats.CompletedTasks,
@@ -352,6 +374,7 @@ func (c *Client) doSendHeartbeat(ctx context.Context) error {
 		MemoryUsage:          getMemoryUsage(),
 		Uptime:               timestamppb.New(c.stats.StartTime),
 		GrpcConnectionStatus: c.getConnectionStatus(),
+		Services:             services,
 	}
 	c.stats.mutex.RUnlock()
 
@@ -368,6 +391,8 @@ func (c *Client) doSendHeartbeat(ctx context.Context) error {
 		"failed_tasks", stats.FailedTasks,
 		"memory_usage_mb", stats.MemoryUsage,
 		"connection_status", stats.GrpcConnectionStatus,
+		"ollama_status", services["ollama"],
+		"grpc_status", services["grpc"],
 		"worker_status", req.Status)
 
 	return c.connectionManager.ExecuteWithRetry(ctx, "heartbeat", func(client workerpb.APIWorkerServiceClient) error {

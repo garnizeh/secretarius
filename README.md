@@ -56,20 +56,28 @@ make run-worker
 ### Development
 
 ```bash
-# Run tests
-make test
+# Live reloading with Air
+make watch-api       # API server with live reload
+make watch-worker    # Worker server with live reload
+make debug-api       # API with debug flags
+make air-both        # Both servers simultaneously
 
-# Run linting
-make lint
+# Alternative: Use the Air helper script
+./scripts/air-dev.sh api     # API only
+./scripts/air-dev.sh worker  # Worker only
+./scripts/air-dev.sh debug   # Debug mode
+./scripts/air-dev.sh both    # Both servers
 
-# Generate code (sqlc, protobuf)
-make generate
+# Traditional development
+make run-api         # API server (no reload)
+make run-worker      # Worker server (no reload)
 
-# Build binaries
-make build
-
-# Clean build artifacts
-make clean
+# Testing and quality
+make test           # Run tests
+make lint           # Run linting
+make generate       # Generate code (sqlc, protobuf)
+make build          # Build binaries
+make clean          # Clean build artifacts
 ```
 
 ## Project Structure

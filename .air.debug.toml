@@ -3,10 +3,10 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-  args_bin = ["-env", ".env.worker-dev"]
-  bin = "./tmp/worker"
-  cmd = "go build -ldflags='-X main.version=dev' -o ./tmp/worker ./cmd/worker"
-  delay = 1000
+  args_bin = ["-env", ".env.dev"]
+  bin = "./tmp/api-debug"
+  cmd = "go build -race -gcflags='-N -l' -ldflags='-X main.version=dev-debug' -o ./tmp/api-debug ./cmd/api"
+  delay = 500
   exclude_dir = [
     "vendor",
     "tmp",
@@ -21,8 +21,7 @@ tmp_dir = "tmp"
     ".git",
     ".github",
     ".vscode",
-    "certs",
-    "api"
+    "certs"
   ]
   exclude_file = []
   exclude_regex = ["_test\\.go$", "\\.test$", "\\.sarif$"]
@@ -30,31 +29,28 @@ tmp_dir = "tmp"
   follow_symlink = false
   full_bin = ""
   include_dir = [
-    "internal/ai",
-    "internal/config",
-    "internal/grpc",
-    "internal/logging",
-    "internal/worker",
-    "cmd/worker",
-    "proto"
+    "internal",
+    "cmd/api",
+    "proto",
+    "api"
   ]
-  include_ext = ["go", "proto", "sql", "yaml", "toml"]
-  include_file = [".env.worker-dev"]
-  kill_delay = "2s"
-  log = "tmp/build-errors.log"
+  include_ext = ["go", "proto", "sql", "yaml", "toml", "json"]
+  include_file = [".env.dev", ".env.api-dev"]
+  kill_delay = "3s"
+  log = "tmp/build-errors-debug.log"
   poll = false
   poll_interval = 0
   rerun = false
-  rerun_delay = 500
+  rerun_delay = 100
   send_interrupt = true
   stop_on_root = false
 
 [color]
-  app = "cyan"
+  app = "red"
   build = "yellow"
   main = "magenta"
   runner = "green"
-  watcher = "blue"
+  watcher = "cyan"
 
 [log]
   main_only = false
