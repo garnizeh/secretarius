@@ -38,7 +38,7 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
-		if !rl.config.RedisEnabled {
+		if !rl.config.RedisEnabled || rl.redis == nil {
 			// Fallback to memory-based rate limiting (no-op for now)
 			c.Next()
 			return
@@ -91,6 +91,11 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 
 // checkRateLimit implements sliding window rate limiting with Redis
 func (rl *RateLimiter) checkRateLimit(ctx context.Context, key string) (allowed bool, remaining int, resetTime int64, err error) {
+	// Safety check for nil Redis client
+	if rl.redis == nil {
+		return false, 0, 0, fmt.Errorf("Redis client is nil")
+	}
+
 	now := time.Now()
 	windowStart := now.Add(-time.Minute) // Look back 1 minute
 	resetTime = now.Add(time.Minute).Unix()
