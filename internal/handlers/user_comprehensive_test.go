@@ -19,7 +19,7 @@ func TestUserHandler_ComprehensiveScenarios(t *testing.T) {
 
 	t.Run("complete_user_profile_lifecycle", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -141,7 +141,7 @@ func TestUserHandler_ComprehensiveScenarios(t *testing.T) {
 
 	t.Run("profile_update_validation", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -187,7 +187,7 @@ func TestUserHandler_ComprehensiveScenarios(t *testing.T) {
 
 	t.Run("password_change_security", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -244,7 +244,7 @@ func TestUserHandler_ComprehensiveScenarios(t *testing.T) {
 
 	t.Run("concurrent_operations", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -285,7 +285,7 @@ func TestUserHandler_ComprehensiveScenarios(t *testing.T) {
 
 	t.Run("malicious_input_handling", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -359,7 +359,7 @@ func TestUserHandler_EdgeCases(t *testing.T) {
 
 	t.Run("token_expiration_scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -392,7 +392,7 @@ func TestUserHandler_EdgeCases(t *testing.T) {
 
 	t.Run("unicode_and_special_characters", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -433,7 +433,7 @@ func TestUserHandler_EdgeCases(t *testing.T) {
 
 	t.Run("large_request_payloads", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -465,7 +465,7 @@ func TestUserHandler_EdgeCases(t *testing.T) {
 
 	t.Run("null_and_empty_values", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -522,7 +522,7 @@ func TestUserHandler_PerformanceScenarios(t *testing.T) {
 
 	t.Run("rapid_successive_requests", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -541,7 +541,7 @@ func TestUserHandler_PerformanceScenarios(t *testing.T) {
 
 	t.Run("memory_efficiency", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)

@@ -60,7 +60,8 @@ func run() error {
 	cfg := config.Load()
 
 	// Setup structured logging
-	logger := logging.NewLogger(cfg.Logging)
+	baseLogger := logging.NewLogger(cfg.Logging)
+	logger := baseLogger.WithService("api")
 	logger.LogStartup("api-server", Version, map[string]any{
 		"environment": cfg.Environment,
 		"port":        cfg.Port,
@@ -80,20 +81,24 @@ func run() error {
 	}
 	defer func() {
 		db.CloseDB()
-		logger.Info("Database connection closed")
+		logger.LogInfo(ctx, "Database connection closed",
+			logging.OperationField, "database_cleanup")
 	}()
 
 	if err := db.Check(ctx); err != nil {
-		logger.LogError(ctx, err, "Database health check failed")
+		logger.LogError(ctx, err, "Database health check failed",
+			logging.OperationField, "database_health_check")
 		return fmt.Errorf("database health check failed: %w", err)
 	}
 
-	logger.Info("Database connection established and healthy")
+	logger.LogInfo(ctx, "Database connection established and healthy",
+		logging.OperationField, "database_initialization")
 
 	// Initialize Redis client for rate limiting
 	redisClient, err := database.NewRedisClient(cfg.Redis, logger)
 	if err != nil {
-		logger.LogError(ctx, err, "Failed to connect to Redis - rate limiting will use fallback mode")
+		logger.LogError(ctx, err, "Failed to connect to Redis - rate limiting will use fallback mode",
+			logging.OperationField, "redis_initialization")
 		// Continue without Redis (rate limiting will fall back to no-op)
 		redisClient = nil
 	}
@@ -109,7 +114,8 @@ func run() error {
 	cleanupCtx, cleanupCancel := context.WithCancel(ctx)
 	defer cleanupCancel()
 	go func() {
-		logger.WithComponent("auth").Info("Starting token cleanup service")
+		logger.WithComponent("auth").LogInfo(ctx, "Starting token cleanup service",
+			logging.OperationField, "start_token_cleanup")
 		authService.StartTokenCleanup(cleanupCtx)
 	}()
 
@@ -120,21 +126,26 @@ func run() error {
 	tagService := services.NewTagService(db, logger)
 	userService := services.NewUserService(db, logger)
 
-	logger.Info("All services initialized successfully")
+	logger.LogInfo(ctx, "All services initialized successfully",
+		logging.OperationField, "services_initialization")
 
 	// Initialize gRPC server for worker communication
 	grpcManager := grpc.NewManager(cfg, logger)
 	if err := grpcManager.Start(); err != nil {
-		logger.LogError(ctx, err, "Failed to start gRPC server")
+		logger.LogError(ctx, err, "Failed to start gRPC server",
+			logging.OperationField, "grpc_startup")
 		return fmt.Errorf("gRPC server startup failed: %w", err)
 	}
 	defer func() {
 		if err := grpcManager.Stop(); err != nil {
-			logger.LogError(ctx, err, "Error stopping gRPC server")
+			logger.LogError(ctx, err, "Error stopping gRPC server",
+				logging.OperationField, "grpc_shutdown")
 		}
 	}()
 
-	logger.Info("gRPC server started successfully", "port", cfg.GRPC.ServerPort)
+	logger.LogInfo(ctx, "gRPC server started successfully",
+		logging.OperationField, "grpc_startup",
+		"port", cfg.GRPC.ServerPort)
 
 	// Create Gin router with structured logging
 	router := handlers.SetupRoutes(
@@ -161,7 +172,8 @@ func run() error {
 
 	// Start server in a goroutine
 	go func() {
-		logger.Info("HTTP server starting",
+		logger.LogInfo(ctx, "HTTP server starting",
+			logging.OperationField, "http_server_startup",
 			"host", cfg.Host,
 			"port", cfg.Port,
 			"read_timeout", cfg.Server.ReadTimeout,
@@ -169,7 +181,8 @@ func run() error {
 			"idle_timeout", cfg.Server.IdleTimeout,
 		)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.LogError(ctx, err, "HTTP server failed to start")
+			logger.LogError(ctx, err, "HTTP server failed to start",
+				logging.OperationField, "http_server_startup")
 		}
 	}()
 
@@ -178,7 +191,8 @@ func run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Shutdown signal received, initiating graceful shutdown")
+	logger.LogInfo(ctx, "Shutdown signal received, initiating graceful shutdown",
+		logging.OperationField, "graceful_shutdown")
 
 	// Cancel cleanup process
 	cleanupCancel()
@@ -188,7 +202,8 @@ func run() error {
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.LogError(ctx, err, "Server forced to shutdown")
+		logger.LogError(ctx, err, "Server forced to shutdown",
+			logging.OperationField, "graceful_shutdown")
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 

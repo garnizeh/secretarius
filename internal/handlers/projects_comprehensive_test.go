@@ -20,7 +20,7 @@ func TestProjectHandler_CreateProject_Comprehensive(t *testing.T) {
 
 	t.Run("comprehensive project creation scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -65,7 +65,7 @@ func TestProjectHandler_CreateProject_Comprehensive(t *testing.T) {
 
 	t.Run("project validation scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -124,7 +124,7 @@ func TestProjectHandler_UpdateProject_Comprehensive(t *testing.T) {
 
 	t.Run("comprehensive update scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -177,7 +177,7 @@ func TestProjectHandler_UpdateProject_Comprehensive(t *testing.T) {
 
 	t.Run("partial update scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -218,7 +218,7 @@ func TestProjectHandler_ErrorHandling_Comprehensive(t *testing.T) {
 
 	t.Run("authorization edge cases", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create two users
 		user1 := createTestUser(t, userService)
@@ -241,7 +241,7 @@ func TestProjectHandler_ErrorHandling_Comprehensive(t *testing.T) {
 
 	t.Run("invalid token scenarios", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		testCases := []struct {
 			name         string
@@ -274,7 +274,7 @@ func TestProjectHandler_DefaultProject_Comprehensive(t *testing.T) {
 
 	t.Run("default project handling", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)

@@ -19,7 +19,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 
 	t.Run("successful profile retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -49,7 +49,7 @@ func TestUserHandler_GetProfile(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to get profile without authentication
 		req, _ := http.NewRequest("GET", "/v1/users/profile", nil)
@@ -66,7 +66,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("successful profile update", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -103,7 +103,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -122,7 +122,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 
 	t.Run("unauthorized update", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		updateRequest := models.UserProfileRequest{
 			FirstName: "UpdatedFirstName",
@@ -149,7 +149,7 @@ func TestUserHandler_ChangePassword(t *testing.T) {
 
 	t.Run("successful password change", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -202,7 +202,7 @@ func TestUserHandler_ChangePassword(t *testing.T) {
 
 	t.Run("invalid current password", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -230,7 +230,7 @@ func TestUserHandler_ChangePassword(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -249,7 +249,7 @@ func TestUserHandler_ChangePassword(t *testing.T) {
 
 	t.Run("unauthorized password change", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		passwordRequest := models.UserPasswordChangeRequest{
 			CurrentPassword: "password123",
@@ -275,7 +275,7 @@ func TestUserHandler_DeleteAccount(t *testing.T) {
 
 	t.Run("successful account deletion", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -309,7 +309,7 @@ func TestUserHandler_DeleteAccount(t *testing.T) {
 
 	t.Run("unauthorized account deletion", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to delete account without authentication
 		req, _ := http.NewRequest("DELETE", "/v1/users/account", nil)
@@ -326,7 +326,7 @@ func TestUserHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("profile retrieval with invalid token", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to get profile with invalid token
 		req, _ := http.NewRequest("GET", "/v1/users/profile", nil)
@@ -339,7 +339,7 @@ func TestUserHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("profile update with empty body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -358,7 +358,7 @@ func TestUserHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("password change with missing fields", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)

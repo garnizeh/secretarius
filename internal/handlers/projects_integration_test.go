@@ -26,7 +26,7 @@ func TestProjectHandler_Integration(t *testing.T) {
 
 func testEndToEndProjectLifecycle(t *testing.T) {
 	// Setup router and services
-	router, userService, _, _, _ := setupTestRouterWithServices(t)
+	router, userService, _, _, _ := RouterWithServices(t)
 
 	// Create and login user
 	user := createTestUser(t, userService)
@@ -128,7 +128,7 @@ func testEndToEndProjectLifecycle(t *testing.T) {
 
 func testMultipleUsersProjectIsolation(t *testing.T) {
 	// Setup router and services
-	router, userService, _, _, _ := setupTestRouterWithServices(t)
+	router, userService, _, _, _ := RouterWithServices(t)
 
 	// Create and login first user
 	user1 := createTestUser(t, userService)
@@ -225,7 +225,7 @@ func testMultipleUsersProjectIsolation(t *testing.T) {
 
 func testConcurrentProjectOperations(t *testing.T) {
 	// Setup router and services
-	router, userService, _, _, _ := setupTestRouterWithServices(t)
+	router, userService, _, _, _ := RouterWithServices(t)
 
 	// Create and login user
 	user := createTestUser(t, userService)
@@ -326,7 +326,7 @@ func testConcurrentProjectOperations(t *testing.T) {
 
 func testDefaultProjectIntegration(t *testing.T) {
 	// Setup router and services
-	router, userService, _, _, _ := setupTestRouterWithServices(t)
+	router, userService, _, _, _ := RouterWithServices(t)
 
 	// Create and login user
 	user := createTestUser(t, userService)
@@ -457,7 +457,7 @@ func testDefaultProjectIntegration(t *testing.T) {
 
 func testValidationAndErrorHandlingIntegration(t *testing.T) {
 	// Setup router and services
-	router, userService, _, _, _ := setupTestRouterWithServices(t)
+	router, userService, _, _, _ := RouterWithServices(t)
 
 	// Create and login user
 	user := createTestUser(t, userService)

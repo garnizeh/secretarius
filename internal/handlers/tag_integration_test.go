@@ -25,7 +25,7 @@ func TestTagHandler_Integration_FullWorkflow(t *testing.T) {
 
 	t.Run("complete tag lifecycle workflow", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -181,7 +181,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("tag usage in log entries affects popular tags", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -261,7 +261,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("recently used tags reflect user activity", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -375,7 +375,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("unauthorized access prevention", func(t *testing.T) {
 		// Setup integration test environment
-		router, _, _, _, tagService := setupTestRouterWithServices(t)
+		router, _, _, _, tagService := RouterWithServices(t)
 
 		// Create a tag directly via service (without going through API)
 		tag, err := tagService.CreateTag(context.Background(), &models.TagRequest{
@@ -420,7 +420,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("user isolation for recently used tags", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create two users
 		user1, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -583,7 +583,7 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("bulk tag operations performance", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -654,7 +654,7 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("concurrent tag creation resilience", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
@@ -706,7 +706,7 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("tag search consistency under load", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create and login user
 		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{

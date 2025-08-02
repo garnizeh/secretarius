@@ -46,7 +46,7 @@ func TestAnalyticsHandler_GetProductivityMetrics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 			user := createTestUser(t, userService)
 			token := loginUser(t, router, user.Email, "password123")
 
@@ -101,7 +101,7 @@ func TestAnalyticsHandler_GetActivitySummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 			user := createTestUser(t, userService)
 			token := loginUser(t, router, user.Email, "password123")
 
@@ -180,7 +180,7 @@ func TestAnalyticsHandler_ErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 
 			// Setup user and token for valid token tests
 			if tt.token == "valid-token" {

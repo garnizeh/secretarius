@@ -34,8 +34,9 @@ func run() error {
 	// Load unified configuration
 	cfg := config.Load()
 
-	// Setup structured logging
-	logger := logging.NewLogger(cfg.Logging)
+	// Setup structured logging with worker service identification
+	baseLogger := logging.NewLogger(cfg.Logging)
+	logger := baseLogger.WithService("worker")
 	logger.LogStartup("worker", Version, map[string]any{
 		"environment": cfg.Environment,
 		"worker_id":   cfg.Worker.WorkerID,
@@ -49,16 +50,19 @@ func run() error {
 	// Initialize AI service with logger
 	aiService, err := ai.NewOllamaService(cfg.Worker.OllamaURL, logger)
 	if err != nil {
-		logger.LogError(ctx, err, "Failed to initialize AI service")
+		logger.LogError(ctx, err, "Failed to initialize AI service",
+			logging.OperationField, "initialize_ai_service")
 		return fmt.Errorf("AI service initialization failed: %w", err)
 	}
 
 	// Test AI service connection
 	if err := aiService.HealthCheck(ctx); err != nil {
-		logger.Warn("AI service health check failed - will retry during operation",
-			"error", err.Error())
+		logger.LogWarn(ctx, "AI service health check failed - will retry during operation",
+			logging.ErrorField, err.Error(),
+			logging.OperationField, "health_check")
 	} else {
-		logger.Info("AI service connected successfully")
+		logger.LogInfo(ctx, "AI service connected successfully",
+			logging.OperationField, "health_check")
 	}
 
 	// Setup gRPC connection manager to API server
@@ -74,14 +78,18 @@ func run() error {
 	connectionManager := worker.NewConnectionManager(logger, connectionConfig)
 
 	// Connect to API server
-	logger.Info("Connecting to API server", "address", cfg.GRPC.APIServerAddress)
+	logger.LogInfo(ctx, "Connecting to API server",
+		logging.OperationField, "connect_to_api_server",
+		"address", cfg.GRPC.APIServerAddress)
 	if err := connectionManager.Connect(ctx); err != nil {
-		logger.LogError(ctx, err, "Failed to connect to API server")
+		logger.LogError(ctx, err, "Failed to connect to API server",
+			logging.OperationField, "connect_to_api_server")
 		return fmt.Errorf("gRPC connection failed: %w", err)
 	}
 	defer func() {
 		connectionManager.Close()
-		logger.Info("gRPC connection closed")
+		logger.LogInfo(ctx, "gRPC connection closed",
+			logging.OperationField, "close_connection")
 	}()
 
 	// Initialize worker service with connection manager and logger
@@ -103,9 +111,12 @@ func run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		logger.Info("Starting HTTP health server", "port", cfg.Worker.HealthPort)
+		logger.LogInfo(ctx, "Starting HTTP health server",
+			logging.OperationField, "start_http_server",
+			"port", cfg.Worker.HealthPort)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.LogError(ctx, err, "HTTP server error")
+			logger.LogError(ctx, err, "HTTP server error",
+				logging.OperationField, "http_server_runtime")
 		}
 	}()
 
@@ -113,20 +124,24 @@ func run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		logger.Info("Starting worker client")
+		logger.LogInfo(ctx, "Starting worker client",
+			logging.OperationField, "start_worker_client")
 		if err := workerService.Start(workerCtx); err != nil {
-			logger.LogError(ctx, err, "Worker client error")
+			logger.LogError(ctx, err, "Worker client error",
+				logging.OperationField, "worker_client_runtime")
 		}
 	}()
 
-	logger.Info("Worker services started successfully")
+	logger.LogInfo(ctx, "Worker services started successfully",
+		logging.OperationField, "startup_complete")
 
 	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 
-	logger.Info("Shutting down worker...")
+	logger.LogInfo(ctx, "Shutting down worker...",
+		logging.OperationField, "shutdown_start")
 	cancel()
 
 	// Shutdown HTTP server
@@ -134,12 +149,14 @@ func run() error {
 	defer shutdownCancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		logger.LogError(ctx, err, "HTTP server shutdown error")
+		logger.LogError(ctx, err, "HTTP server shutdown error",
+			logging.OperationField, "shutdown_http_server")
 	}
 
 	// Wait for all goroutines to finish
 	wg.Wait()
-	logger.Info("Worker stopped successfully")
+	logger.LogInfo(ctx, "Worker stopped successfully",
+		logging.OperationField, "shutdown_complete")
 
 	return nil
 }

@@ -76,10 +76,12 @@ func (m *Manager) Start() error {
 			return fmt.Errorf("failed to load TLS credentials: %w", err)
 		}
 		opts = append(opts, grpc.Creds(creds))
-		m.logger.Info("gRPC server configured with TLS",
+		m.logger.LogInfo(context.Background(), "gRPC server configured with TLS",
+			logging.OperationField, "grpc_setup",
 			"cert", m.config.GRPC.TLSCertFile)
 	} else {
-		m.logger.Warn("gRPC server running without TLS - not recommended for production")
+		m.logger.LogWarn(context.Background(), "gRPC server running without TLS - not recommended for production",
+			logging.OperationField, "grpc_setup")
 	}
 
 	// Create gRPC server
@@ -92,7 +94,8 @@ func (m *Manager) Start() error {
 	m.stopped = false
 
 	setupDuration := time.Since(start)
-	m.logger.Info("Starting gRPC server",
+	m.logger.LogInfo(context.Background(), "Starting gRPC server",
+		logging.OperationField, "grpc_startup",
 		"address", address,
 		"tls_enabled", m.config.GRPC.TLSEnabled,
 		"setup_duration_ms", setupDuration.Milliseconds())
@@ -126,12 +129,14 @@ func (m *Manager) Stop() error {
 	m.stopped = true
 
 	if m.grpcServer != nil {
-		m.logger.Info("Stopping gRPC server")
+		m.logger.LogInfo(context.Background(), "Stopping gRPC server",
+			logging.OperationField, "grpc_shutdown")
 		m.grpcServer.GracefulStop()
 
 		duration := time.Since(start)
 		m.logger.LogShutdown("grpc-manager", "graceful_stop", true)
-		m.logger.Info("gRPC server stopped gracefully",
+		m.logger.LogInfo(context.Background(), "gRPC server stopped gracefully",
+			logging.OperationField, "grpc_shutdown",
 			"shutdown_duration_ms", duration.Milliseconds())
 		m.grpcServer = nil
 	}
@@ -139,7 +144,8 @@ func (m *Manager) Stop() error {
 	if m.listener != nil {
 		if err := m.listener.Close(); err != nil {
 			// Log o erro mas não retorne, pois já marcamos como stopped
-			m.logger.LogError(context.Background(), err, "Error closing listener")
+			m.logger.LogError(context.Background(), err, "Error closing listener",
+				logging.OperationField, "grpc_shutdown")
 		}
 		m.listener = nil
 	}
@@ -157,7 +163,8 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 	start := time.Now()
 	taskID := fmt.Sprintf("insight_%s_%d", userID, time.Now().Unix())
 
-	m.logger.Info("Queuing insight generation task",
+	m.logger.LogInfo(context.Background(), "Queuing insight generation task",
+		logging.OperationField, "queue_insight_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"entry_count", len(entryIDs),
@@ -174,6 +181,7 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 	payloadJSON, err := jsonMarshal(payload)
 	if err != nil {
 		m.logger.LogError(context.Background(), err, "Failed to marshal insight task payload",
+			logging.OperationField, "queue_insight_task",
 			"task_id", taskID,
 			"user_id", userID)
 		return "", fmt.Errorf("failed to marshal task payload: %w", err)
@@ -197,13 +205,15 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 
 	if err != nil {
 		m.logger.LogError(context.Background(), err, "Failed to queue insight generation task",
+			logging.OperationField, "queue_insight_task",
 			"task_id", taskID,
 			"user_id", userID,
 			"duration_ms", duration.Milliseconds())
 		return "", err
 	}
 
-	m.logger.Info("Insight generation task queued successfully",
+	m.logger.LogInfo(context.Background(), "Insight generation task queued successfully",
+		logging.OperationField, "queue_insight_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"duration_ms", duration.Milliseconds())
@@ -216,7 +226,8 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 	start := time.Now()
 	taskID := fmt.Sprintf("report_%s_%d", userID, time.Now().Unix())
 
-	m.logger.Info("Queuing weekly report task",
+	m.logger.LogInfo(context.Background(), "Queuing weekly report task",
+		logging.OperationField, "queue_weekly_report_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"week_start", weekStart.Format("2006-01-02"),
@@ -232,6 +243,7 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 	payloadJSON, err := jsonMarshal(payload)
 	if err != nil {
 		m.logger.LogError(context.Background(), err, "Failed to marshal weekly report task payload",
+			logging.OperationField, "queue_weekly_report_task",
 			"task_id", taskID,
 			"user_id", userID)
 		return "", fmt.Errorf("failed to marshal task payload: %w", err)
@@ -254,13 +266,15 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 
 	if err != nil {
 		m.logger.LogError(context.Background(), err, "Failed to queue weekly report task",
+			logging.OperationField, "queue_weekly_report_task",
 			"task_id", taskID,
 			"user_id", userID,
 			"duration_ms", duration.Milliseconds())
 		return "", err
 	}
 
-	m.logger.Info("Weekly report task queued successfully",
+	m.logger.LogInfo(context.Background(), "Weekly report task queued successfully",
+		logging.OperationField, "queue_weekly_report_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"duration_ms", duration.Milliseconds())
@@ -276,13 +290,15 @@ func (m *Manager) GetTaskResult(taskID string) (*TaskResult, bool) {
 	duration := time.Since(start)
 
 	if found {
-		m.logger.Debug("Task result retrieved",
+		m.logger.LogDebug(context.Background(), "Task result retrieved",
+			logging.OperationField, "get_task_result",
 			"task_id", taskID,
 			"worker_id", result.WorkerID,
 			"status", result.Status,
 			"duration_ms", duration.Milliseconds())
 	} else {
-		m.logger.Debug("Task result not found",
+		m.logger.LogDebug(context.Background(), "Task result not found",
+			logging.OperationField, "get_task_result",
 			"task_id", taskID,
 			"duration_ms", duration.Milliseconds())
 	}

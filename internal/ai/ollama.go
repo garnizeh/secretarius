@@ -71,12 +71,14 @@ func NewOllamaService(baseURL string, logger *logging.Logger) (*OllamaService, e
 		return nil, fmt.Errorf("logger cannot be nil")
 	}
 
-	logger.Info("Creating new Ollama service",
+	serviceLogger := logger.WithServiceAndComponent("worker", "ollama_service")
+	serviceLogger.LogInfo(context.Background(), "Creating new Ollama service",
+		logging.OperationField, "new_ollama_service",
 		"base_url", baseURL,
 		"timeout", "120s")
 
 	return &OllamaService{
-		logger:  logger,
+		logger:  serviceLogger,
 		baseURL: baseURL,
 		client: &http.Client{
 			Timeout: 120 * time.Second, // Increased timeout for AI operations
@@ -91,7 +93,8 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 		return nil, fmt.Errorf("prompt cannot be empty")
 	}
 
-	s.logger.Info("Starting insight generation",
+	s.logger.LogInfo(ctx, "Starting insight generation",
+		logging.OperationField, "generate_insight",
 		"prompt_length", len(prompt),
 		"model", "qwen2.5-coder:7b")
 
@@ -101,22 +104,25 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		s.logger.Debug("Attempting insight generation",
+		s.logger.LogDebug(ctx, "Attempting insight generation",
+			logging.OperationField, "generate_insight",
 			"attempt", attempt+1,
 			"max_retries", maxRetries)
 
 		select {
 		case <-ctx.Done():
-			s.logger.Warn("Insight generation cancelled",
+			s.logger.LogWarn(ctx, "Insight generation cancelled",
+				logging.OperationField, "generate_insight",
 				"attempt", attempt+1,
-				"error", ctx.Err().Error())
+				logging.ErrorField, ctx.Err())
 			return nil, fmt.Errorf("insight generation cancelled: %w", ctx.Err())
 		default:
 		}
 
 		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 60*time.Second)
 		if err == nil {
-			s.logger.Info("Insight generation successful",
+			s.logger.LogInfo(ctx, "Insight generation successful",
+				logging.OperationField, "generate_insight",
 				"attempt", attempt+1,
 				"response_length", len(response))
 
@@ -127,7 +133,8 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 				Confidence: 0.8, // Default confidence
 			}
 
-			s.logger.Debug("Generated insight",
+			s.logger.LogDebug(ctx, "Generated insight",
+				logging.OperationField, "generate_insight",
 				"content_length", len(insight.Content),
 				"tags_count", len(insight.Tags),
 				"confidence", insight.Confidence)
@@ -136,13 +143,15 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 		}
 
 		lastErr = err
-		s.logger.Warn("Insight generation attempt failed",
+		s.logger.LogWarn(ctx, "Insight generation attempt failed",
+			logging.OperationField, "generate_insight",
 			"attempt", attempt+1,
-			"error", err.Error())
+			logging.ErrorField, err)
 
 		if attempt < maxRetries-1 {
 			delay := time.Duration(attempt+1) * baseDelay
-			s.logger.Debug("Retrying insight generation",
+			s.logger.LogDebug(ctx, "Retrying insight generation",
+				logging.OperationField, "generate_insight",
 				"delay", delay.String(),
 				"next_attempt", attempt+2)
 
@@ -170,8 +179,9 @@ func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *Ins
 	// Enhance prompt with structured context
 	enhancedPrompt := s.buildEnhancedPrompt(req)
 
-	s.logger.Info("Starting insight generation with context",
-		"user_id", req.UserID,
+	s.logger.LogInfo(ctx, "Starting insight generation with context",
+		logging.OperationField, "generate_insight_with_context",
+		logging.UserIDField, req.UserID,
 		"insight_type", req.InsightType,
 		"entry_count", len(req.EntryIDs),
 		"enhanced_prompt_length", len(enhancedPrompt),
@@ -250,8 +260,9 @@ func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
 			if len(contextData) > 0 {
 				contextJSON, err := json.MarshalIndent(contextData, "", "  ")
 				if err != nil {
-					s.logger.Warn("Failed to marshal context data, adding basic context info",
-						"error", err.Error())
+					s.logger.LogWarn(context.Background(), "Failed to marshal context data, adding basic context info",
+						logging.OperationField, "build_enhanced_prompt",
+						logging.ErrorField, err)
 					promptBuilder.WriteString(fmt.Sprintf("\nStructured context provided (%d fields)", len(contextData)))
 				} else {
 					promptBuilder.WriteString(fmt.Sprintf("\nStructured Context:\n%s", string(contextJSON)))
@@ -260,13 +271,15 @@ func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
 
 		default:
 			// Unknown context type - try to convert to JSON
-			s.logger.Warn("Unknown context type, attempting JSON serialization",
+			s.logger.LogWarn(context.Background(), "Unknown context type, attempting JSON serialization",
+				logging.OperationField, "build_enhanced_prompt",
 				"type", fmt.Sprintf("%T", contextData))
 
 			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
 			if err != nil {
-				s.logger.Warn("Failed to serialize unknown context type, adding type info only",
-					"error", err.Error(),
+				s.logger.LogWarn(context.Background(), "Failed to serialize unknown context type, adding type info only",
+					logging.OperationField, "build_enhanced_prompt",
+					logging.ErrorField, err,
 					"type", fmt.Sprintf("%T", contextData))
 				promptBuilder.WriteString(fmt.Sprintf("\nContext Type: %T (serialization failed)", contextData))
 			} else {
@@ -417,8 +430,9 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
 
-	s.logger.Info("Starting weekly report generation",
-		"user_id", userID,
+	s.logger.LogInfo(ctx, "Starting weekly report generation",
+		logging.OperationField, "generate_weekly_report",
+		logging.UserIDField, userID,
 		"week_start", weekStart.Format("2006-01-02"),
 		"week_end", weekEnd.Format("2006-01-02"))
 
@@ -433,26 +447,29 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		s.logger.Debug("Attempting weekly report generation",
+		s.logger.LogDebug(ctx, "Attempting weekly report generation",
+			logging.OperationField, "generate_weekly_report",
 			"attempt", attempt+1,
 			"max_retries", maxRetries,
-			"user_id", userID)
+			logging.UserIDField, userID)
 
 		select {
 		case <-ctx.Done():
-			s.logger.Warn("Weekly report generation cancelled",
+			s.logger.LogWarn(ctx, "Weekly report generation cancelled",
+				logging.OperationField, "generate_weekly_report",
 				"attempt", attempt+1,
-				"user_id", userID,
-				"error", ctx.Err().Error())
+				logging.UserIDField, userID,
+				logging.ErrorField, ctx.Err())
 			return nil, fmt.Errorf("weekly report generation cancelled: %w", ctx.Err())
 		default:
 		}
 
 		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 90*time.Second)
 		if err == nil {
-			s.logger.Info("Weekly report generation successful",
+			s.logger.LogInfo(ctx, "Weekly report generation successful",
+				logging.OperationField, "generate_weekly_report",
 				"attempt", attempt+1,
-				"user_id", userID,
+				logging.UserIDField, userID,
 				"response_length", len(response))
 
 			// Parse response into structured report
@@ -462,8 +479,9 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 				Recommendations: []string{"Recommendation 1", "Recommendation 2"},
 			}
 
-			s.logger.Debug("Generated weekly report",
-				"user_id", userID,
+			s.logger.LogDebug(ctx, "Generated weekly report",
+				logging.OperationField, "generate_weekly_report",
+				logging.UserIDField, userID,
 				"summary_length", len(report.Summary),
 				"insights_count", len(report.KeyInsights),
 				"recommendations_count", len(report.Recommendations))
@@ -472,17 +490,19 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 		}
 
 		lastErr = err
-		s.logger.Warn("Weekly report generation attempt failed",
+		s.logger.LogWarn(ctx, "Weekly report generation attempt failed",
+			logging.OperationField, "generate_weekly_report",
 			"attempt", attempt+1,
-			"user_id", userID,
-			"error", err.Error())
+			logging.UserIDField, userID,
+			logging.ErrorField, err)
 
 		if attempt < maxRetries-1 {
 			delay := time.Duration(attempt+1) * baseDelay
-			s.logger.Debug("Retrying weekly report generation",
+			s.logger.LogDebug(ctx, "Retrying weekly report generation",
+				logging.OperationField, "generate_weekly_report",
 				"delay", delay.String(),
 				"next_attempt", attempt+2,
-				"user_id", userID)
+				logging.UserIDField, userID)
 
 			select {
 			case <-ctx.Done():
@@ -501,12 +521,14 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 
 // HealthCheck performs a health check on the AI service
 func (s *OllamaService) HealthCheck(ctx context.Context) error {
-	s.logger.Debug("Performing AI service health check")
+	s.logger.LogDebug(ctx, "Performing AI service health check",
+		logging.OperationField, "health_check")
 
 	// Simple health check by making a basic request
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", s.baseURL, nil)
 	if err != nil {
-		s.logger.LogError(ctx, err, "Health check failed: error creating HTTP request")
+		s.logger.LogError(ctx, err, "Health check failed: error creating HTTP request",
+			logging.OperationField, "health_check")
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}
 
@@ -535,14 +557,16 @@ func (s *OllamaService) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("health check failed with status: %s", resp.Status)
 	}
 
-	s.logger.Debug("AI service health check passed",
+	s.logger.LogDebug(ctx, "AI service health check passed",
+		logging.OperationField, "health_check",
 		"duration", duration.String())
 	return nil
 }
 
 // generateWithTimeout makes a request to Ollama with the specified timeout
 func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt string, timeout time.Duration) (string, error) {
-	s.logger.Debug("Making generation request",
+	s.logger.LogDebug(ctx, "Making generation request",
+		logging.OperationField, "generate_with_timeout",
 		"model", model,
 		"prompt_length", len(prompt),
 		"timeout", timeout)
@@ -557,15 +581,15 @@ func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt s
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
-		s.logger.Error("Failed to marshal generation request",
-			"error", err)
+		s.logger.LogError(ctx, err, "Failed to marshal generation request",
+			logging.OperationField, "generate_with_timeout")
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		s.logger.Error("Failed to create HTTP request",
-			"error", err)
+		s.logger.LogError(ctx, err, "Failed to create HTTP request",
+			logging.OperationField, "generate_with_timeout")
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -581,15 +605,16 @@ func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt s
 	duration := time.Since(start)
 
 	if err != nil {
-		s.logger.Error("Generation request failed",
-			"error", err,
+		s.logger.LogError(ctx, err, "Generation request failed",
+			logging.OperationField, "generate_with_timeout",
 			"duration", duration)
 		return "", fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.logger.Error("Generation request returned non-OK status",
+		s.logger.LogError(ctx, fmt.Errorf("non-OK status: %d", resp.StatusCode), "Generation request returned non-OK status",
+			logging.OperationField, "generate_with_timeout",
 			"status_code", resp.StatusCode,
 			"status", resp.Status,
 			"duration", duration)
@@ -598,13 +623,14 @@ func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt s
 
 	var genResp GenerateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&genResp); err != nil {
-		s.logger.Error("Failed to decode generation response",
-			"error", err,
+		s.logger.LogError(ctx, err, "Failed to decode generation response",
+			logging.OperationField, "generate_with_timeout",
 			"duration", duration)
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	s.logger.Debug("Generation request completed successfully",
+	s.logger.LogDebug(ctx, "Generation request completed successfully",
+		logging.OperationField, "generate_with_timeout",
 		"response_length", len(genResp.Response),
 		"duration", duration,
 		"done", genResp.Done)

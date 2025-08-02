@@ -536,7 +536,8 @@ func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
 	// Validate task
 	if task.TaskId == "" {
 		err := fmt.Errorf("task_id is required")
-		s.logger.Error("Task queue failed - missing task ID", "error", err.Error())
+		s.logger.LogError(context.Background(), err, "Task queue failed - missing task ID",
+			logging.OperationField, "queue_task")
 		return err
 	}
 
@@ -545,7 +546,8 @@ func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
 		duration := time.Since(start)
 		queueSize := len(s.taskQueue)
 
-		s.logger.Info("Task queued",
+		s.logger.LogInfo(context.Background(), "Task queued",
+			logging.OperationField, "queue_task",
 			"task_id", task.TaskId,
 			"task_type", task.TaskType,
 			"queue_size", queueSize,
@@ -553,11 +555,11 @@ func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
 		return nil
 	default:
 		err := fmt.Errorf("task queue is full")
-		s.logger.Error("Task queue failed - queue is full",
+		s.logger.LogError(context.Background(), err, "Task queue failed - queue is full",
+			logging.OperationField, "queue_task",
 			"task_id", task.TaskId,
 			"task_type", task.TaskType,
-			"queue_capacity", cap(s.taskQueue),
-			"error", err.Error())
+			"queue_capacity", cap(s.taskQueue))
 		return err
 	}
 }
@@ -601,7 +603,8 @@ func (s *Server) GetActiveWorkers() map[string]*WorkerInfo {
 	duration := time.Since(start)
 	activeWorkers := len(workers)
 
-	s.logger.Debug("Active workers retrieved",
+	s.logger.LogDebug(context.Background(), "Active workers retrieved",
+		logging.OperationField, "get_active_workers",
 		"total_workers", totalWorkers,
 		"active_workers", activeWorkers,
 		"stalled_workers", stalledWorkers,
@@ -625,7 +628,8 @@ func (s *Server) Start(address string) error {
 	workerpb.RegisterAPIWorkerServiceServer(grpcServer, s)
 
 	setupDuration := time.Since(start)
-	s.logger.Info("Starting gRPC server",
+	s.logger.LogInfo(context.Background(), "Starting gRPC server",
+		logging.OperationField, "serve",
 		"address", address,
 		"setup_duration_ms", setupDuration.Milliseconds())
 
@@ -633,7 +637,8 @@ func (s *Server) Start(address string) error {
 	defer func() {
 		totalDuration := time.Since(start)
 		s.logger.LogShutdown("grpc-server", "serve_completed", true)
-		s.logger.Info("gRPC server stopped",
+		s.logger.LogInfo(context.Background(), "gRPC server stopped",
+			logging.OperationField, "serve",
 			"address", address,
 			"total_runtime_ms", totalDuration.Milliseconds())
 	}()
@@ -671,7 +676,8 @@ func (s *Server) CleanupStalledWorkers() {
 			delete(s.workers, id)
 			removedWorkers = append(removedWorkers, id)
 
-			s.logger.Info("Removed stalled worker",
+			s.logger.LogInfo(context.Background(), "Removed stalled worker",
+				logging.OperationField, "worker_cleanup",
 				"worker_id", id,
 				"status", worker.Status.String(),
 				"time_since_heartbeat_minutes", timeSinceLastHeartbeat.Minutes(),
@@ -680,7 +686,8 @@ func (s *Server) CleanupStalledWorkers() {
 	}
 
 	if len(removedWorkers) > 0 {
-		s.logger.Info("Worker cleanup completed",
+		s.logger.LogInfo(context.Background(), "Worker cleanup completed",
+			logging.OperationField, "worker_cleanup",
 			"removed_workers", removedWorkers,
 			"total_removed", len(removedWorkers),
 			"cleanup_duration_ms", time.Since(start).Milliseconds())
@@ -695,13 +702,15 @@ func (s *Server) StartPeriodicCleanup(ctx context.Context) {
 		ticker := time.NewTicker(cleanupInterval)
 		defer ticker.Stop()
 
-		s.logger.Info("Started periodic worker cleanup",
+		s.logger.LogInfo(ctx, "Started periodic worker cleanup",
+			logging.OperationField, "start_periodic_cleanup",
 			"cleanup_interval_minutes", cleanupInterval.Minutes())
 
 		for {
 			select {
 			case <-ctx.Done():
-				s.logger.Info("Stopping periodic worker cleanup")
+				s.logger.LogInfo(ctx, "Stopping periodic worker cleanup",
+					logging.OperationField, "stop_periodic_cleanup")
 				return
 			case <-ticker.C:
 				s.CleanupStalledWorkers()
