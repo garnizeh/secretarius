@@ -5,30 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/garnizeh/englog/internal/logging"
+	"github.com/tmc/langchaingo/llms"
+	"github.com/tmc/langchaingo/llms/ollama"
 )
 
-// OllamaService implements AI service using Ollama with resilience
+// OllamaService implements AI service using Ollama with langchaingo
 type OllamaService struct {
-	logger  *logging.Logger
-	baseURL string
-	client  *http.Client
-}
-
-// GenerateRequest represents a request to Ollama
-type GenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-// GenerateResponse represents a response from Ollama
-type GenerateResponse struct {
-	Response string `json:"response"`
-	Done     bool   `json:"done"`
+	logger    *logging.Logger
+	baseURL   string
+	modelName string
+	llm       llms.Model
 }
 
 // Insight represents an AI-generated insight
@@ -166,7 +155,7 @@ type WeeklyReport struct {
 	Recommendations []string `json:"recommendations"`
 }
 
-// NewOllamaService creates a new Ollama service instance with retry configuration
+// NewOllamaService creates a new Ollama service instance using langchaingo
 func NewOllamaService(ctx context.Context, baseURL string, logger *logging.Logger) (*OllamaService, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("ollama base URL cannot be empty")
@@ -177,21 +166,39 @@ func NewOllamaService(ctx context.Context, baseURL string, logger *logging.Logge
 	}
 
 	serviceLogger := logger.WithServiceAndComponent("worker", "ollama_service")
-	serviceLogger.LogInfo(ctx, "Creating new Ollama service",
+
+	// Default model - this should be configurable in the future
+	modelName := "qwen2.5-coder:7b"
+
+	serviceLogger.LogInfo(ctx, "Creating new Ollama service with langchaingo",
 		logging.OperationField, "new_ollama_service",
 		"base_url", baseURL,
-		"timeout", "120s")
+		"model", modelName)
+
+	// Create langchaingo Ollama LLM instance
+	llm, err := ollama.New(
+		ollama.WithServerURL(baseURL),
+		ollama.WithModel(modelName),
+	)
+	if err != nil {
+		serviceLogger.LogError(ctx, err, "Failed to create langchaingo Ollama LLM",
+			logging.OperationField, "new_ollama_service")
+		return nil, fmt.Errorf("failed to create Ollama LLM: %w", err)
+	}
+
+	serviceLogger.LogInfo(ctx, "Successfully created langchaingo Ollama LLM",
+		logging.OperationField, "new_ollama_service",
+		"model", modelName)
 
 	return &OllamaService{
-		logger:  serviceLogger,
-		baseURL: baseURL,
-		client: &http.Client{
-			Timeout: 120 * time.Second, // Increased timeout for AI operations
-		},
+		logger:    serviceLogger,
+		baseURL:   baseURL,
+		modelName: modelName,
+		llm:       llm,
 	}, nil
 }
 
-// GenerateInsight generates AI insights using structured context
+// GenerateInsight generates AI insights using langchaingo
 func (s *OllamaService) GenerateInsight(ctx context.Context, req *InsightRequest) (*Insight, error) {
 	prompt := req.Prompt(ctx, s.logger)
 	if prompt == "" {
@@ -199,15 +206,14 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, req *InsightRequest
 		return nil, fmt.Errorf("invalid request: did not generated prompt")
 	}
 
-	s.logger.LogInfo(ctx, "Starting insight generation with context",
+	s.logger.LogInfo(ctx, "Starting insight generation with langchaingo",
 		logging.OperationField, "generate_insight",
 		logging.UserIDField, req.UserID,
 		"insight_type", req.InsightType,
 		"entry_count", len(req.EntryIDs),
 		"enhanced_prompt_length", len(prompt),
 		"context_type", fmt.Sprintf("%T", req.Context),
-		"prompt_length", len(prompt),
-		"model", "qwen2.5-coder:7b") //TODO: the model should be configurable at the constructor level
+		"model", s.modelName)
 
 	// Retry configuration for AI operations
 	maxRetries := 3
@@ -230,7 +236,12 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, req *InsightRequest
 		default:
 		}
 
-		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 60*time.Second)
+		// Create a timeout context for this attempt
+		timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+
+		// Use langchaingo Call method
+		response, err := s.llm.Call(timeoutCtx, prompt)
 		if err == nil {
 			s.logger.LogInfo(ctx, "Insight generation successful",
 				logging.OperationField, "generate_insight",
@@ -401,18 +412,19 @@ func (s *OllamaService) validateTimeManagementContext(context map[string]any) er
 	return nil
 }
 
-// GenerateWeeklyReport generates a weekly report with retry logic
+// GenerateWeeklyReport generates a weekly report using langchaingo
 func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string, weekStart, weekEnd time.Time) (*WeeklyReport, error) {
 	if userID == "" {
 		s.logger.LogError(ctx, fmt.Errorf("empty userID"), "GenerateWeeklyReport called with empty userID")
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
 
-	s.logger.LogInfo(ctx, "Starting weekly report generation",
+	s.logger.LogInfo(ctx, "Starting weekly report generation with langchaingo",
 		logging.OperationField, "generate_weekly_report",
 		logging.UserIDField, userID,
 		"week_start", weekStart.Format("2006-01-02"),
-		"week_end", weekEnd.Format("2006-01-02"))
+		"week_end", weekEnd.Format("2006-01-02"),
+		"model", s.modelName)
 
 	prompt := fmt.Sprintf(
 		"Generate a comprehensive weekly productivity report for user %s from %s to %s. "+
@@ -442,7 +454,12 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 		default:
 		}
 
-		response, err := s.generateWithTimeout(ctx, "qwen2.5-coder:7b", prompt, 90*time.Second)
+		// Create a timeout context for this attempt
+		timeoutCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+		defer cancel()
+
+		// Use langchaingo Call method
+		response, err := s.llm.Call(timeoutCtx, prompt)
 		if err == nil {
 			s.logger.LogInfo(ctx, "Weekly report generation successful",
 				logging.OperationField, "generate_weekly_report",
@@ -497,121 +514,43 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 	return nil, fmt.Errorf("failed to generate weekly report after %d attempts: %w", maxRetries, lastErr)
 }
 
-// HealthCheck performs a health check on the AI service
+// HealthCheck performs a health check on the AI service using a simple prompt
 func (s *OllamaService) HealthCheck(ctx context.Context) error {
-	s.logger.LogDebug(ctx, "Performing AI service health check",
-		logging.OperationField, "health_check")
+	s.logger.LogDebug(ctx, "Performing AI service health check with langchaingo",
+		logging.OperationField, "health_check",
+		"model", s.modelName)
 
-	// Simple health check by making a basic request
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", s.baseURL, nil)
-	if err != nil {
-		s.logger.LogError(ctx, err, "Health check failed: error creating HTTP request",
-			logging.OperationField, "health_check")
-		return fmt.Errorf("failed to create health check request: %w", err)
-	}
-
-	// Use a shorter timeout for health checks
+	// Create a shorter timeout for health checks
 	healthCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	httpReq = httpReq.WithContext(healthCtx)
+	// Simple health check with a basic prompt
+	testPrompt := "Respond with 'OK' to confirm you are working."
 
 	start := time.Now()
-	resp, err := s.client.Do(httpReq)
+	response, err := s.llm.Call(healthCtx, testPrompt)
 	duration := time.Since(start)
 
 	if err != nil {
-		s.logger.LogError(ctx, err, "Health check failed: HTTP request error",
-			"duration", duration.String())
-		return fmt.Errorf("health check request failed: %w", err)
+		s.logger.LogError(ctx, err, "Health check failed: LLM call error",
+			"duration", duration.String(),
+			"model", s.modelName)
+		return fmt.Errorf("health check failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		s.logger.LogError(ctx, fmt.Errorf("non-OK status: %d", resp.StatusCode), "Health check failed: non-OK status",
-			"status_code", resp.StatusCode,
-			"status", resp.Status,
-			"duration", duration.String())
-		return fmt.Errorf("health check failed with status: %s", resp.Status)
+	// Check if we got any response
+	if len(response) == 0 {
+		s.logger.LogError(ctx, fmt.Errorf("empty response"), "Health check failed: empty response",
+			"duration", duration.String(),
+			"model", s.modelName)
+		return fmt.Errorf("health check failed: empty response from LLM")
 	}
 
 	s.logger.LogDebug(ctx, "AI service health check passed",
 		logging.OperationField, "health_check",
-		"duration", duration.String())
+		"duration", duration.String(),
+		"response_length", len(response),
+		"model", s.modelName)
+
 	return nil
-}
-
-// generateWithTimeout makes a request to Ollama with the specified timeout
-func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt string, timeout time.Duration) (string, error) {
-	s.logger.LogDebug(ctx, "Making generation request",
-		logging.OperationField, "generate_with_timeout",
-		"model", model,
-		"prompt_length", len(prompt),
-		"timeout", timeout)
-
-	req := &GenerateRequest{
-		Model:  model,
-		Prompt: prompt,
-		Stream: false,
-	}
-
-	url := fmt.Sprintf("%s/api/generate", s.baseURL)
-
-	jsonData, err := json.Marshal(req)
-	if err != nil {
-		s.logger.LogError(ctx, err, "Failed to marshal generation request",
-			logging.OperationField, "generate_with_timeout")
-		return "", fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		s.logger.LogError(ctx, err, "Failed to create HTTP request",
-			logging.OperationField, "generate_with_timeout")
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	// Apply timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	httpReq = httpReq.WithContext(timeoutCtx)
-
-	start := time.Now()
-	resp, err := s.client.Do(httpReq)
-	duration := time.Since(start)
-
-	if err != nil {
-		s.logger.LogError(ctx, err, "Generation request failed",
-			logging.OperationField, "generate_with_timeout",
-			"duration", duration)
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		s.logger.LogError(ctx, fmt.Errorf("non-OK status: %d", resp.StatusCode), "Generation request returned non-OK status",
-			logging.OperationField, "generate_with_timeout",
-			"status_code", resp.StatusCode,
-			"status", resp.Status,
-			"duration", duration)
-		return "", fmt.Errorf("request failed with status: %s", resp.Status)
-	}
-
-	var genResp GenerateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&genResp); err != nil {
-		s.logger.LogError(ctx, err, "Failed to decode generation response",
-			logging.OperationField, "generate_with_timeout",
-			"duration", duration)
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	s.logger.LogDebug(ctx, "Generation request completed successfully",
-		logging.OperationField, "generate_with_timeout",
-		"response_length", len(genResp.Response),
-		"duration", duration,
-		"done", genResp.Done)
-
-	return genResp.Response, nil
 }
