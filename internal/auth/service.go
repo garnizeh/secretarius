@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -536,9 +537,11 @@ func (a *AuthService) deactivateSessionsByRefreshToken(ctx context.Context, refr
 // hashToken creates a simple hash for token storage (not bcrypt since we need consistency)
 func (a *AuthService) hashToken(token string) string {
 	// For session token hashing, we need a deterministic hash
-	// Using a simple approach for now - in production, consider using HMAC-SHA256
-	hash := fmt.Sprintf("token_%x", []byte(token))
-	return hash[:64] // Limit length for database storage
+	// Using SHA256 hex for better uniqueness
+	hasher := sha256.New()
+	hasher.Write([]byte(token))
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	return hash // Return full hash to avoid collisions
 }
 
 func generateJTI() (string, error) {

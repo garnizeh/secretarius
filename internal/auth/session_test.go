@@ -62,7 +62,7 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("GetUserSessionByToken", func(t *testing.T) {
-		// Create tokens and session
+		// Create unique tokens for this test
 		accessToken, err := authService.CreateAccessToken(ctx, userID)
 		require.NoError(t, err)
 
@@ -72,7 +72,7 @@ func TestSessionManagement(t *testing.T) {
 		createdSession, err := authService.CreateUserSession(ctx, userID, accessToken, refreshToken, "127.0.0.1", "Test-Agent/1.0")
 		require.NoError(t, err)
 
-		// Retrieve session by token
+		// Retrieve session by the SAME token used to create it
 		retrievedSession, err := authService.GetUserSessionByToken(ctx, accessToken)
 		require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func TestSessionManagement(t *testing.T) {
 	})
 
 	t.Run("UpdateSessionActivity", func(t *testing.T) {
-		// Create tokens and session
+		// Create unique tokens for this test
 		accessToken, err := authService.CreateAccessToken(ctx, userID)
 		require.NoError(t, err)
 
@@ -91,31 +91,47 @@ func TestSessionManagement(t *testing.T) {
 		session, err := authService.CreateUserSession(ctx, userID, accessToken, refreshToken, "127.0.0.1", "Test-Agent/1.0")
 		require.NoError(t, err)
 
-		// Wait a moment to ensure time difference
-		time.Sleep(10 * time.Millisecond)
+		// Wait a sufficient amount to ensure time difference
+		time.Sleep(100 * time.Millisecond)
 
 		// Update session activity
 		err = authService.UpdateSessionActivity(ctx, session.ID)
 		require.NoError(t, err)
 
-		// Verify the update
+		// Verify the update - retrieve fresh session
 		updatedSession, err := authService.GetUserSessionByToken(ctx, accessToken)
 		require.NoError(t, err)
+		require.NotNil(t, updatedSession)
 
 		// LastActivity should be more recent than CreatedAt
-		assert.True(t, updatedSession.LastActivity.Time.After(updatedSession.CreatedAt.Time))
+		if updatedSession.LastActivity.Valid {
+			assert.True(t, updatedSession.LastActivity.Time.After(updatedSession.CreatedAt.Time),
+				"LastActivity (%v) should be after CreatedAt (%v)",
+				updatedSession.LastActivity.Time, updatedSession.CreatedAt.Time)
+		} else {
+			t.Error("LastActivity is not valid after update")
+		}
 	})
 
 	t.Run("DeactivateSession", func(t *testing.T) {
-		// Create tokens and session
+		// Create unique tokens for this test with specific suffix
 		accessToken, err := authService.CreateAccessToken(ctx, userID)
 		require.NoError(t, err)
+		
+		// Add unique suffix to ensure test isolation
+		accessToken = accessToken + "_deactivate_test"
 
 		refreshToken, err := authService.CreateRefreshToken(ctx, userID)
 		require.NoError(t, err)
 
 		session, err := authService.CreateUserSession(ctx, userID, accessToken, refreshToken, "127.0.0.1", "Test-Agent/1.0")
 		require.NoError(t, err)
+		require.NotNil(t, session)
+
+		// Verify session is active initially
+		activeSession, err := authService.GetUserSessionByToken(ctx, accessToken)
+		require.NoError(t, err)
+		require.True(t, activeSession.IsActive.Bool, "Session should be active initially")
 
 		// Deactivate session
 		err = authService.DeactivateSession(ctx, session.ID)
@@ -123,7 +139,7 @@ func TestSessionManagement(t *testing.T) {
 
 		// Try to retrieve session - should fail since it's inactive
 		_, err = authService.GetUserSessionByToken(ctx, accessToken)
-		assert.Error(t, err)
+		require.Error(t, err, "Should get error when trying to retrieve inactive session")
 		assert.Contains(t, err.Error(), "session not found")
 	})
 
