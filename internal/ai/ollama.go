@@ -240,8 +240,8 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, req *InsightRequest
 		timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
 
-		// Use langchaingo Call method
-		response, err := s.llm.Call(timeoutCtx, prompt)
+		// Use langchaingo GenerateFromSinglePrompt method
+		response, err := llms.GenerateFromSinglePrompt(timeoutCtx, s.llm, prompt)
 		if err == nil {
 			s.logger.LogInfo(ctx, "Insight generation successful",
 				logging.OperationField, "generate_insight",
@@ -458,8 +458,8 @@ func (s *OllamaService) GenerateWeeklyReport(ctx context.Context, userID string,
 		timeoutCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		defer cancel()
 
-		// Use langchaingo Call method
-		response, err := s.llm.Call(timeoutCtx, prompt)
+		// Use langchaingo GenerateFromSinglePrompt method
+		response, err := llms.GenerateFromSinglePrompt(timeoutCtx, s.llm, prompt)
 		if err == nil {
 			s.logger.LogInfo(ctx, "Weekly report generation successful",
 				logging.OperationField, "generate_weekly_report",
@@ -528,7 +528,7 @@ func (s *OllamaService) HealthCheck(ctx context.Context) error {
 	testPrompt := "Respond with 'OK' to confirm you are working."
 
 	start := time.Now()
-	response, err := s.llm.Call(healthCtx, testPrompt)
+	response, err := llms.GenerateFromSinglePrompt(healthCtx, s.llm, testPrompt)
 	duration := time.Since(start)
 
 	if err != nil {
