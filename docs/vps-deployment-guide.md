@@ -178,7 +178,7 @@ make deploy-machine1
 #### 4.2 Verificação do Deploy
 ```bash
 # Verifique se os serviços estão rodando
-docker-compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 
 # Verifique os logs
 make prod-api-logs
@@ -199,19 +199,19 @@ chmod 755 logs/*
 ### 2. Build das Imagens
 ```bash
 # Build da imagem Docker
-docker-compose -f docker-compose.api.yml build
+docker compose -f deployments/docker-compose/api.yml build
 ```
 
 ### 3. Inicialização dos Serviços
 ```bash
 # Inicie os serviços em background
-docker-compose -f docker-compose.api.yml up -d
+docker compose -f deployments/docker-compose/api.yml up -d
 
 # Aguarde os serviços ficarem saudáveis
 sleep 30
 
 # Verifique o status
-docker-compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 ```
 
 ## Configurações de Segurança
@@ -259,16 +259,16 @@ make prod-api-down && make prod-api-up
 ### Comandos Docker Compose Diretos
 ```bash
 # Status dos containers
-docker-compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 
 # Logs de um serviço específico
-docker-compose -f docker-compose.api.yml logs -f api-server
+docker compose -f deployments/docker-compose/api.yml logs -f api-server
 
 # Restart de um serviço específico
-docker-compose -f docker-compose.api.yml restart api-server
+docker compose -f deployments/docker-compose/api.yml restart api-server
 
 # Executar comandos dentro do container
-docker-compose -f docker-compose.api.yml exec api-server sh
+docker compose -f deployments/docker-compose/api.yml exec api-server sh
 ```
 
 ## Monitoramento e Logs
@@ -282,7 +282,7 @@ curl https://seu-dominio.com/health
 curl https://seu-dominio.com/ready
 
 # Verificar via Docker
-docker-compose -f docker-compose.api.yml exec api-server wget -q -O- http://localhost:8080/health
+docker compose -f deployments/docker-compose/api.yml exec api-server wget -q -O- http://localhost:8080/health
 ```
 
 ### 2. Logs Estruturados
@@ -294,10 +294,10 @@ tail -f logs/api/app.log
 tail -f logs/caddy/access.log
 
 # Logs do PostgreSQL
-docker-compose -f docker-compose.api.yml logs postgres
+docker compose -f deployments/docker-compose/api.yml logs postgres
 
 # Logs do Redis
-docker-compose -f docker-compose.api.yml logs redis
+docker compose -f deployments/docker-compose/api.yml logs redis
 ```
 
 ## Backup e Manutenção
@@ -311,7 +311,7 @@ BACKUP_DIR="/backup/postgres"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
-docker-compose -f docker-compose.api.yml exec postgres pg_dump -U englog englog > $BACKUP_DIR/backup_$DATE.sql
+docker compose -f deployments/docker-compose/api.yml exec postgres pg_dump -U englog englog > $BACKUP_DIR/backup_$DATE.sql
 
 # Manter apenas os últimos 7 backups
 find $BACKUP_DIR -name "backup_*.sql" -mtime +7 -delete
@@ -332,7 +332,7 @@ chmod +x scripts/backup-db.sh
 git pull origin main
 
 # Rebuild e restart
-docker-compose -f docker-compose.api.yml build --no-cache
+docker compose -f deployments/docker-compose/api.yml build --no-cache
 make prod-api-down
 make prod-api-up
 ```
@@ -342,20 +342,20 @@ make prod-api-up
 ### 1. Problemas Comuns
 ```bash
 # Container não inicia
-docker-compose -f docker-compose.api.yml logs api-server
+docker compose -f deployments/docker-compose/api.yml logs api-server
 
 # Problemas de conexão com banco
-docker-compose -f docker-compose.api.yml exec postgres psql -U englog -d englog -c "\l"
+docker compose -f deployments/docker-compose/api.yml exec postgres psql -U englog -d englog -c "\l"
 
 # Problemas com SSL
-docker-compose -f docker-compose.api.yml logs caddy
+docker compose -f deployments/docker-compose/api.yml logs caddy
 ```
 
 ### 2. Reset Completo (Use com Cuidado)
 ```bash
 # Parar tudo e limpar volumes
 make prod-api-down
-docker-compose -f docker-compose.api.yml down -v
+docker compose -f deployments/docker-compose/api.yml down -v
 docker system prune -a
 
 # Restart completo

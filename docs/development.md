@@ -229,7 +229,7 @@ make docker-build
 #### Development with Docker Compose
 ```bash
 # Start all services
-docker-compose -f deployments/docker-compose.dev.yml up
+docker compose -f deployments/docker-compose/dev.yml up
 
 # View logs
 make dev-logs

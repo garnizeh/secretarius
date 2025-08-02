@@ -5,7 +5,7 @@ services:
   # Worker Server
   worker:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/worker/Dockerfile.dev
     container_name: englog-worker-server
     depends_on:
@@ -15,9 +15,9 @@ services:
       - "9091:9091"  # gRPC port
       - "8091:8091"  # HTTP health check port
     env_file:
-      - .env.worker-dev
+      - ../environments/development/.env.worker-dev
     volumes:
-      - .:/app
+      - ../..:/app
       - worker_logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]

@@ -4,9 +4,13 @@ This directory contains Docker Compose configurations for the EngLog two-machine
 
 ## Files Overview
 
-- `docker-compose.api.yml` - Machine 1: API Server, Database, Cache, Monitoring
-- `docker-compose.worker.yml` - Machine 2: Worker Server, Scheduler
-- `docker-compose.dev.yml` - Development environment (single machine)
+- `docker-compose/api.yml` - Machine 1: API Server, Database, Cache, Monitoring
+- `docker-compose/worker.yml` - Machine 2: Worker Server, Scheduler
+- `docker-compose/dev.yml` - Development environment (single machine)
+- `docker-compose/infra-dev.yml` - Infrastructure only for development
+- `docker-compose/api-dev.yml` - API development environment
+- `docker-compose/worker-dev.yml` - Worker development environment
+- `docker-compose/test.yml` - Testing environment
 
 ## Quick Start
 
@@ -14,13 +18,13 @@ This directory contains Docker Compose configurations for the EngLog two-machine
 
 ```bash
 # Start development environment
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose/dev.yml up -d
 
 # View logs
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose/dev.yml logs -f
 
 # Stop services
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose/dev.yml down
 ```
 
 ### Production Deployment
@@ -37,7 +41,7 @@ vim .env
 ./scripts/deploy-machine1.sh
 
 # Or manually:
-docker-compose -f docker-compose.api.yml up -d
+docker compose -f docker-compose/api.yml up -d
 ```
 
 #### Machine 2 (Worker Server)
@@ -49,7 +53,7 @@ cp .env.production .env
 ./scripts/deploy-machine2.sh
 
 # Or manually:
-docker-compose -f docker-compose.worker.yml up -d
+docker compose -f docker-compose/worker.yml up -d
 ```
 
 ## Services
@@ -100,10 +104,10 @@ All services include health checks. Monitor service health:
 
 ```bash
 # Check service status
-docker-compose -f docker-compose.api.yml ps
+docker compose -f docker-compose/api.yml ps
 
 # View service logs
-docker-compose -f docker-compose.api.yml logs api-server
+docker compose -f docker-compose/api.yml logs api-server
 
 # Check health endpoints
 curl http://localhost/health
@@ -179,19 +183,19 @@ curl http://localhost:9091/health
 ### Logs
 ```bash
 # View all service logs
-docker-compose logs -f
+docker compose logs -f
 
 # View specific service logs
-docker-compose logs -f api-server
+docker compose logs -f api-server
 
 # Check health
-docker-compose exec api-server wget -q --spider http://localhost:8080/health
+docker compose exec api-server wget -q --spider http://localhost:8080/health
 ```
 
 ### Database Access
 ```bash
 # Connect to PostgreSQL
-docker-compose exec postgres psql -U englog -d englog
+docker compose exec postgres psql -U englog -d englog
 
 # Connect to Redis
 docker-compose exec redis redis-cli

@@ -69,8 +69,8 @@ func NewAuthServiceForTest(db *database.DB, logger *logging.Logger, secretKey st
 	}
 }
 
-func (a *AuthService) CreateAccessToken(userID string) (string, error) {
-	a.logger.Info("Creating access token", "user_id", userID)
+func (a *AuthService) CreateAccessToken(ctx context.Context, userID string) (string, error) {
+	a.logger.WithContext(ctx).Info("Creating access token", "user_id", userID)
 
 	claims := &Claims{
 		UserID:    userID,
@@ -86,20 +86,20 @@ func (a *AuthService) CreateAccessToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(a.secretKey)
 	if err != nil {
-		a.logger.LogError(context.Background(), err, "Failed to sign access token", "user_id", userID)
+		a.logger.LogError(ctx, err, "Failed to sign access token", "user_id", userID)
 		return "", err
 	}
 
-	a.logger.Info("Access token created successfully", "user_id", userID, "expires_in_minutes", int(a.accessTokenTTL.Minutes()))
+	a.logger.WithContext(ctx).Info("Access token created successfully", "user_id", userID, "expires_in_minutes", int(a.accessTokenTTL.Minutes()))
 	return tokenString, nil
 }
 
-func (a *AuthService) CreateRefreshToken(userID string) (string, error) {
-	a.logger.Info("Creating refresh token", "user_id", userID)
+func (a *AuthService) CreateRefreshToken(ctx context.Context, userID string) (string, error) {
+	a.logger.WithContext(ctx).Info("Creating refresh token", "user_id", userID)
 
 	jti, err := generateJTI()
 	if err != nil {
-		a.logger.LogError(context.Background(), err, "Failed to generate JTI for refresh token", "user_id", userID)
+		a.logger.LogError(ctx, err, "Failed to generate JTI for refresh token", "user_id", userID)
 		return "", err
 	}
 
@@ -118,16 +118,16 @@ func (a *AuthService) CreateRefreshToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(a.secretKey)
 	if err != nil {
-		a.logger.LogError(context.Background(), err, "Failed to sign refresh token", "user_id", userID, "jti", jti)
+		a.logger.LogError(ctx, err, "Failed to sign refresh token", "user_id", userID, "jti", jti)
 		return "", err
 	}
 
-	a.logger.Info("Refresh token created successfully", "user_id", userID, "jti", jti, "expires_in_hours", int(a.refreshTokenTTL.Hours()))
+	a.logger.WithContext(ctx).Info("Refresh token created successfully", "user_id", userID, "jti", jti, "expires_in_hours", int(a.refreshTokenTTL.Hours()))
 	return tokenString, nil
 }
 
 func (a *AuthService) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
-	a.logger.Info("Validating token")
+	a.logger.WithContext(ctx).Info("Validating token")
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -165,7 +165,7 @@ func (a *AuthService) ValidateToken(ctx context.Context, tokenString string) (*C
 		}
 	}
 
-	a.logger.Info("Token validated successfully", "user_id", claims.UserID, "token_type", claims.TokenType, "jti", claims.JTI)
+	a.logger.WithContext(ctx).Info("Token validated successfully", "user_id", claims.UserID, "token_type", claims.TokenType, "jti", claims.JTI)
 	return claims, nil
 }
 
@@ -195,13 +195,13 @@ func (a *AuthService) RotateRefreshToken(ctx context.Context, oldRefreshToken st
 	}
 
 	// Generate new tokens
-	newAccessToken, err := a.CreateAccessToken(claims.UserID)
+	newAccessToken, err := a.CreateAccessToken(ctx, claims.UserID)
 	if err != nil {
 		a.logger.LogError(ctx, err, "Failed to create new access token during rotation", "user_id", claims.UserID)
 		return "", "", err
 	}
 
-	newRefreshToken, err := a.CreateRefreshToken(claims.UserID)
+	newRefreshToken, err := a.CreateRefreshToken(ctx, claims.UserID)
 	if err != nil {
 		a.logger.LogError(ctx, err, "Failed to create new refresh token during rotation", "user_id", claims.UserID)
 		return "", "", err
@@ -211,16 +211,16 @@ func (a *AuthService) RotateRefreshToken(ctx context.Context, oldRefreshToken st
 	return newAccessToken, newRefreshToken, nil
 }
 
-func (a *AuthService) HashPassword(password string) (string, error) {
-	a.logger.Info("Hashing password")
+func (a *AuthService) HashPassword(ctx context.Context, password string) (string, error) {
+	a.logger.WithContext(ctx).Info("Hashing password")
 
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), a.bcryptCost)
 	if err != nil {
-		a.logger.LogError(context.Background(), err, "Failed to hash password")
+		a.logger.LogError(ctx, err, "Failed to hash password")
 		return "", err
 	}
 
-	a.logger.Info("Password hashed successfully")
+	a.logger.WithContext(ctx).Info("Password hashed successfully")
 	return string(bytes), nil
 }
 

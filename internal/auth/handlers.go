@@ -34,13 +34,15 @@ func (a *AuthService) RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	a.logger.Info("User registration attempt", "email", req.Email, "ip", c.ClientIP())
+	ctx := c.Request.Context()
+
+	a.logger.WithContext(ctx).Info("User registration attempt", "email", req.Email, "ip", c.ClientIP())
 
 	// Check if user already exists
 	if err := a.db.Read(c, func(qtx *store.Queries) error {
-		_, err := qtx.GetUserByEmail(c.Request.Context(), req.Email)
+		_, err := qtx.GetUserByEmail(ctx, req.Email)
 		if err == nil {
-			a.logger.Warn("Registration failed - user already exists", "email", req.Email, "ip", c.ClientIP())
+			a.logger.WithContext(ctx).Warn("Registration failed - user already exists", "email", req.Email, "ip", c.ClientIP())
 			c.JSON(http.StatusConflict, gin.H{
 				"error": "User already exists",
 			})
@@ -53,9 +55,9 @@ func (a *AuthService) RegisterHandler(c *gin.Context) {
 	}
 
 	// Hash password
-	hashedPassword, err := a.HashPassword(req.Password)
+	hashedPassword, err := a.HashPassword(ctx, req.Password)
 	if err != nil {
-		a.logger.LogError(c.Request.Context(), err, "Failed to hash password during registration", "email", req.Email)
+		a.logger.LogError(ctx, err, "Failed to hash password during registration", "email", req.Email)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to process password",
 		})
@@ -72,7 +74,7 @@ func (a *AuthService) RegisterHandler(c *gin.Context) {
 
 	if err := a.db.Write(c, func(qtx *store.Queries) error {
 		var preferences []byte // Initialize empty preferences
-		user, err = qtx.CreateUser(c.Request.Context(), store.CreateUserParams{
+		user, err = qtx.CreateUser(ctx, store.CreateUserParams{
 			Email:        req.Email,
 			PasswordHash: hashedPassword,
 			FirstName:    req.FirstName,
@@ -81,7 +83,7 @@ func (a *AuthService) RegisterHandler(c *gin.Context) {
 			Preferences:  preferences,
 		})
 		if err != nil {
-			a.logger.LogError(c.Request.Context(), err, "Failed to create user in database", "email", req.Email)
+			a.logger.LogError(ctx, err, "Failed to create user in database", "email", req.Email)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Failed to create user",
 			})
@@ -93,28 +95,28 @@ func (a *AuthService) RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	a.logger.Info("User account created successfully", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
+	a.logger.WithContext(ctx).Info("User account created successfully", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
 
 	// Create tokens for immediate login
-	accessToken, err := a.CreateAccessToken(user.ID.String())
+	accessToken, err := a.CreateAccessToken(ctx, user.ID.String())
 	if err != nil {
-		a.logger.LogError(c.Request.Context(), err, "Failed to create access token after registration", "email", req.Email, "user_id", user.ID)
+		a.logger.LogError(ctx, err, "Failed to create access token after registration", "email", req.Email, "user_id", user.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create access token",
 		})
 		return
 	}
 
-	refreshToken, err := a.CreateRefreshToken(user.ID.String())
+	refreshToken, err := a.CreateRefreshToken(ctx, user.ID.String())
 	if err != nil {
-		a.logger.LogError(c.Request.Context(), err, "Failed to create refresh token after registration", "email", req.Email, "user_id", user.ID)
+		a.logger.LogError(ctx, err, "Failed to create refresh token after registration", "email", req.Email, "user_id", user.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create refresh token",
 		})
 		return
 	}
 
-	a.logger.Info("User registration completed successfully", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
+	a.logger.WithContext(ctx).Info("User registration completed successfully", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
 
 	c.JSON(http.StatusCreated, gin.H{
 		"user": convertToUserProfile(user),
@@ -150,16 +152,18 @@ func (a *AuthService) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	a.logger.Info("User login attempt", "email", req.Email, "ip", c.ClientIP())
+	ctx := c.Request.Context()
+
+	a.logger.WithContext(ctx).Info("User login attempt", "email", req.Email, "ip", c.ClientIP())
 
 	var user store.User
 
 	// Get user by email
 	if err := a.db.Read(c, func(qtx *store.Queries) error {
 		var err error
-		user, err = qtx.GetUserByEmail(c.Request.Context(), req.Email)
+		user, err = qtx.GetUserByEmail(ctx, req.Email)
 		if err != nil {
-			a.logger.Warn("Login failed - user not found", "email", req.Email, "ip", c.ClientIP())
+			a.logger.WithContext(ctx).Warn("Login failed - user not found", "email", req.Email, "ip", c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid credentials",
 			})
@@ -180,36 +184,36 @@ func (a *AuthService) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	a.logger.Info("Password verification successful", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
+	a.logger.WithContext(ctx).Info("Password verification successful", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
 
 	// Update last login
 	if err := a.db.Write(c, func(qtx *store.Queries) error {
-		return qtx.UpdateUserLastLogin(c.Request.Context(), user.ID)
+		return qtx.UpdateUserLastLogin(ctx, user.ID)
 	}); err != nil {
 		a.logger.Warn("Failed to update last login timestamp", "error", err.Error(), "email", req.Email, "user_id", user.ID)
 		// Don't fail the login for this non-critical error
 	}
 
 	// Create tokens
-	accessToken, err := a.CreateAccessToken(user.ID.String())
+	accessToken, err := a.CreateAccessToken(ctx, user.ID.String())
 	if err != nil {
-		a.logger.LogError(c.Request.Context(), err, "Failed to create access token during login", "email", req.Email, "user_id", user.ID)
+		a.logger.LogError(ctx, err, "Failed to create access token during login", "email", req.Email, "user_id", user.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create access token",
 		})
 		return
 	}
 
-	refreshToken, err := a.CreateRefreshToken(user.ID.String())
+	refreshToken, err := a.CreateRefreshToken(ctx, user.ID.String())
 	if err != nil {
-		a.logger.LogError(c.Request.Context(), err, "Failed to create refresh token during login", "email", req.Email, "user_id", user.ID)
+		a.logger.LogError(ctx, err, "Failed to create refresh token during login", "email", req.Email, "user_id", user.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create refresh token",
 		})
 		return
 	}
 
-	a.logger.Info("User login successful", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
+	a.logger.WithContext(ctx).Info("User login successful", "email", req.Email, "user_id", user.ID, "ip", c.ClientIP())
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": convertToUserProfile(user),
@@ -247,15 +251,17 @@ func (a *AuthService) RefreshHandler(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	// Extract user info from token for logging
 	userID := "unknown"
-	if claims, err := a.ValidateToken(c.Request.Context(), req.RefreshToken); err == nil {
+	if claims, err := a.ValidateToken(ctx, req.RefreshToken); err == nil {
 		userID = claims.Subject
 	}
 
 	a.logger.Info("Token refresh attempt", "user_id", userID, "ip", c.ClientIP())
 
-	newAccessToken, newRefreshToken, err := a.RotateRefreshToken(c.Request.Context(), req.RefreshToken)
+	newAccessToken, newRefreshToken, err := a.RotateRefreshToken(ctx, req.RefreshToken)
 	if err != nil {
 		a.logger.Warn("Token refresh failed", "error", err.Error(), "user_id", userID, "ip", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -302,7 +308,9 @@ func (a *AuthService) LogoutHandler(c *gin.Context) {
 		return
 	}
 
-	claims, err := a.ValidateToken(c.Request.Context(), req.RefreshToken)
+	ctx := c.Request.Context()
+
+	claims, err := a.ValidateToken(ctx, req.RefreshToken)
 	if err != nil {
 		a.logger.Warn("Logout failed - invalid refresh token", "error", err.Error(), "ip", c.ClientIP())
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -324,9 +332,9 @@ func (a *AuthService) LogoutHandler(c *gin.Context) {
 
 	// Denylist the refresh token
 	if claims.JTI != "" {
-		err = a.DenylistRefreshToken(c.Request.Context(), claims.JTI, claims.UserID)
+		err = a.DenylistRefreshToken(ctx, claims.JTI, claims.UserID)
 		if err != nil {
-			a.logger.LogError(c.Request.Context(), err, "Failed to denylist refresh token during logout", "user_id", userID, "jti", claims.JTI)
+			a.logger.LogError(ctx, err, "Failed to denylist refresh token during logout", "user_id", userID, "jti", claims.JTI)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Failed to logout",
 			})
@@ -375,7 +383,8 @@ func (a *AuthService) MeHandler(c *gin.Context) {
 	a.logger.Info("User profile request", "user_id", userUUID, "ip", c.ClientIP())
 
 	if err := a.db.Read(c, func(qtx *store.Queries) error {
-		user, err := qtx.GetUserByID(c.Request.Context(), userUUID)
+		ctx := c.Request.Context()
+		user, err := qtx.GetUserByID(ctx, userUUID)
 		if err != nil {
 			a.logger.Warn("User not found in profile request", "user_id", userUUID, "error", err.Error())
 			c.JSON(http.StatusNotFound, gin.H{

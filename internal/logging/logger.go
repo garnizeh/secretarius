@@ -10,6 +10,11 @@ import (
 	"github.com/garnizeh/englog/internal/config"
 )
 
+// Define a custom type for context keys to avoid collisions
+type contextKey string
+
+const traceIDKey contextKey = "trace_id"
+
 // Logger wraps slog.Logger with additional convenience methods
 type Logger struct {
 	*slog.Logger
@@ -169,9 +174,19 @@ func (l *Logger) LogShutdown(component string, reason string, graceful bool) {
 
 // Helper functions
 
+// GetTraceIDKey returns the context key for trace ID
+func GetTraceIDKey() contextKey {
+	return traceIDKey
+}
+
+// SetTraceID sets the trace ID in context
+func SetTraceID(ctx context.Context, traceID string) context.Context {
+	return context.WithValue(ctx, traceIDKey, traceID)
+}
+
 // getTraceID extracts trace ID from context
 func getTraceID(ctx context.Context) string {
-	if traceID := ctx.Value("trace_id"); traceID != nil {
+	if traceID := ctx.Value(traceIDKey); traceID != nil {
 		if id, ok := traceID.(string); ok {
 			return id
 		}

@@ -2,16 +2,16 @@ services:
   # Worker Server (Background Processing)
   worker-server:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/worker/Dockerfile
     container_name: englog_worker_server
     restart: unless-stopped
     ports:
       - "9091:9091"  # gRPC Client Port
     env_file:
-      - .env.worker-dev
+      - ../environments/production/.env.worker
     volumes:
-      - ./logs/worker:/app/logs
+      - ../../logs/worker:/app/logs
     networks:
       - private
     # Remove dependency on ollama since it's external
@@ -35,7 +35,7 @@ services:
   #     - SCHEDULE_WEEKLY_REPORTS=true
   #     - SCHEDULE_CLEANUP_TASKS=true
   #   volumes:
-  #     - ./logs/scheduler:/app/logs
+  #     - ../../logs/scheduler:/app/logs
   #   networks:
   #     - private
   #   depends_on:
