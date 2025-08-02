@@ -16,7 +16,7 @@ import (
 	"github.com/garnizeh/englog/internal/logging"
 	"github.com/garnizeh/englog/internal/models"
 	"github.com/garnizeh/englog/internal/services"
-	"github.com/garnizeh/englog/internal/store/testutils"
+	"github.com/garnizeh/englog/internal/testutils"
 )
 
 // TestProjectServiceIntegration tests the full project management flow with database
@@ -389,7 +389,7 @@ func BenchmarkProjectService(b *testing.B) {
 		var createdIDs []string
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			req := &models.ProjectRequest{
 				Name:   fmt.Sprintf("bench-project-%d", i),
 				Color:  "#FF0000",
@@ -428,7 +428,7 @@ func BenchmarkProjectService(b *testing.B) {
 		}()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := projectService.GetProject(ctx, testUser.ID.String(), project.ID.String())
 			if err != nil {
 				b.Fatalf("Failed to get project: %v", err)
@@ -448,7 +448,7 @@ func BenchmarkProjectService(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := projectService.GetUserProjects(ctx, testUser.ID.String())
 			if err != nil {
 				b.Fatalf("Failed to get user projects: %v", err)

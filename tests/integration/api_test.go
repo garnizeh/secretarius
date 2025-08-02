@@ -17,7 +17,7 @@ import (
 	"github.com/garnizeh/englog/internal/logging"
 	"github.com/garnizeh/englog/internal/models"
 	"github.com/garnizeh/englog/internal/services"
-	"github.com/garnizeh/englog/internal/store/testutils"
+	"github.com/garnizeh/englog/internal/testutils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

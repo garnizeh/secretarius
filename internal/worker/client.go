@@ -674,7 +674,7 @@ func (c *Client) processInsightTask(ctx context.Context, task *workerpb.TaskRequ
 	c.updateTaskProgress(ctx, task.TaskId, 25, "Starting AI insight generation")
 
 	// Use the enhanced context-aware insight generation
-	insight, err := c.aiService.GenerateInsightWithContext(ctx, &insightReq)
+	insight, err := c.aiService.GenerateInsight(ctx, &insightReq)
 	if err != nil {
 		return "", fmt.Errorf("AI insight generation failed: %w", err)
 	}

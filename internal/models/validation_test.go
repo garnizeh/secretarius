@@ -371,25 +371,25 @@ func parseTime(t *testing.T, timeStr string) time.Time {
 
 // Performance/benchmark tests
 func BenchmarkValidateActivityType(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidateActivityType("coding")
 	}
 }
 
 func BenchmarkValidateValueRating(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidateValueRating("high")
 	}
 }
 
 func BenchmarkValidateImpactLevel(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ValidateImpactLevel("medium")
 	}
 }
 
 func BenchmarkValidateDateFormat(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = ValidateDateFormat("2023-12-25")
 	}
 }

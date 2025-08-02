@@ -16,7 +16,7 @@ import (
 	"github.com/garnizeh/englog/internal/logging"
 	"github.com/garnizeh/englog/internal/models"
 	"github.com/garnizeh/englog/internal/services"
-	"github.com/garnizeh/englog/internal/store/testutils"
+	"github.com/garnizeh/englog/internal/testutils"
 )
 
 // TestUserServiceIntegration tests the full user management flow with database
@@ -376,7 +376,7 @@ func BenchmarkUserService(b *testing.B) {
 		var createdIDs []string
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			req := &models.UserRegistration{
 				Email:     fmt.Sprintf("bench-user-%d@example.com", i),
 				Password:  "password123",
@@ -419,7 +419,7 @@ func BenchmarkUserService(b *testing.B) {
 		}()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := userService.GetUserProfile(ctx, user.ID.String())
 			if err != nil {
 				b.Fatalf("Failed to get user profile: %v", err)
@@ -456,7 +456,7 @@ func BenchmarkUserService(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := userService.UpdateUserProfile(ctx, user.ID.String(), updateReq)
 			if err != nil {
 				b.Fatalf("Failed to update user profile: %v", err)

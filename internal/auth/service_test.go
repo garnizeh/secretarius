@@ -284,7 +284,7 @@ func TestTokenExpiration(t *testing.T) {
 // "Uniqueness is the essence of security." 🎲
 func TestMultipleTokensUniqueness(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -364,7 +364,7 @@ func BenchmarkCreateAccessToken(b *testing.B) {
 	userID := uuid.New().String()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := authService.CreateAccessToken(ctx, userID)
 		if err != nil {
 			b.Fatal(err)
@@ -382,7 +382,7 @@ func BenchmarkCreateRefreshToken(b *testing.B) {
 	userID := uuid.New().String()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := authService.CreateRefreshToken(ctx, userID)
 		if err != nil {
 			b.Fatal(err)
@@ -404,7 +404,7 @@ func BenchmarkValidateToken(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := authService.ValidateToken(ctx, token)
 		if err != nil {
 			b.Fatal(err)
@@ -444,7 +444,7 @@ func BenchmarkCheckPassword(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		authService.CheckPassword(password, hash)
 	}
 }

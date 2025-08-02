@@ -16,7 +16,7 @@ import (
 	"github.com/garnizeh/englog/internal/logging"
 	"github.com/garnizeh/englog/internal/models"
 	"github.com/garnizeh/englog/internal/services"
-	"github.com/garnizeh/englog/internal/store/testutils"
+	"github.com/garnizeh/englog/internal/testutils"
 )
 
 // TestTagServiceIntegration tests the full tag management flow with database
@@ -298,7 +298,7 @@ func BenchmarkTagService(b *testing.B) {
 		var createdIDs []string
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			req := &models.TagRequest{
 				Name:        fmt.Sprintf("bench-tag-%d", i),
 				Color:       "#FF0000",
@@ -337,7 +337,7 @@ func BenchmarkTagService(b *testing.B) {
 		}()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := tagService.GetTag(ctx, tag.ID.String())
 			if err != nil {
 				b.Fatalf("Failed to get tag: %v", err)
@@ -357,7 +357,7 @@ func BenchmarkTagService(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := tagService.SearchTags(ctx, "search-bench", 10)
 			if err != nil {
 				b.Fatalf("Failed to search tags: %v", err)

@@ -494,7 +494,7 @@ func BenchmarkRespondWithError(b *testing.B) {
 	gin.SetMode(gin.TestMode)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c, _ := setupTestGinContext()
 		RespondWithError(c, http.StatusBadRequest, "Test error", "Test details")
 	}
@@ -505,7 +505,7 @@ func BenchmarkRespondWithSuccess(b *testing.B) {
 	data := map[string]string{"id": "123", "name": "test"}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c, _ := setupTestGinContext()
 		RespondWithSuccess(c, http.StatusOK, data, "Test message")
 	}
@@ -524,7 +524,7 @@ func BenchmarkRespondWithPagination(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		c, _ := setupTestGinContext()
 		RespondWithPagination(c, data, pagination)
 	}
@@ -536,7 +536,7 @@ func BenchmarkGetUserIDFromContext(b *testing.B) {
 	c.Set("user_id", "user-123")
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		GetUserIDFromContext(c)
 	}
 }

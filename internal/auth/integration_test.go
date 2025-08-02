@@ -18,7 +18,7 @@ import (
 	"github.com/garnizeh/englog/internal/logging"
 	"github.com/garnizeh/englog/internal/models"
 	"github.com/garnizeh/englog/internal/store"
-	"github.com/garnizeh/englog/internal/store/testutils"
+	"github.com/garnizeh/englog/internal/testutils"
 )
 
 // TestAuthServiceIntegration tests the full authentication flow with database
@@ -36,7 +36,7 @@ func TestAuthServiceIntegration(t *testing.T) {
 
 		// Create a test user first
 		email := fmt.Sprintf("integration-test-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		require.NoError(t, err)
 
 		var testUserID uuid.UUID
@@ -61,7 +61,7 @@ func TestAuthServiceIntegration(t *testing.T) {
 		testUserIDString := testUserID.String()
 
 		// Create access token
-		accessToken, err := authService.CreateAccessToken(testUserIDString)
+		accessToken, err := authService.CreateAccessToken(ctx, testUserIDString)
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
 
@@ -72,7 +72,7 @@ func TestAuthServiceIntegration(t *testing.T) {
 		assert.Equal(t, models.TokenAccess, claims.TokenType)
 
 		// Create refresh token
-		refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 		require.NoError(t, err)
 		assert.NotEmpty(t, refreshToken)
 
@@ -104,6 +104,7 @@ func TestAuthServiceIntegration(t *testing.T) {
 // TestRefreshTokenDenylistIntegration tests refresh token denylist operations
 // "The denylist protects us from revoked tokens." 🚫
 func TestRefreshTokenDenylistIntegration(t *testing.T) {
+	ctx := context.Background()
 	db := testutils.DB(t)
 
 	// Create test logger
@@ -113,8 +114,7 @@ func TestRefreshTokenDenylistIntegration(t *testing.T) {
 
 	// Helper to create a test user
 	createTestUser := func(email string) uuid.UUID {
-		ctx := context.Background()
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		require.NoError(t, err)
 
 		var userID uuid.UUID
@@ -139,12 +139,11 @@ func TestRefreshTokenDenylistIntegration(t *testing.T) {
 	}
 
 	t.Run("DenylistAndValidation", func(t *testing.T) {
-		ctx := context.Background()
 		testUserID := createTestUser(fmt.Sprintf("denylist-test-1-%d@example.com", time.Now().UnixNano()))
 		testUserIDString := testUserID.String()
 
 		// Create a refresh token
-		refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 		require.NoError(t, err)
 
 		// Token should be valid initially
@@ -162,13 +161,12 @@ func TestRefreshTokenDenylistIntegration(t *testing.T) {
 	})
 
 	t.Run("CleanupExpiredTokens", func(t *testing.T) {
-		ctx := context.Background()
 		testUserID := createTestUser(fmt.Sprintf("denylist-test-2-%d@example.com", time.Now().UnixNano()))
 		testUserIDString := testUserID.String()
 
 		// Create and denylist multiple tokens
 		for i := 0; i < 3; i++ {
-			refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+			refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 			require.NoError(t, err)
 
 			claims, err := authService.ValidateToken(ctx, refreshToken)
@@ -187,6 +185,7 @@ func TestRefreshTokenDenylistIntegration(t *testing.T) {
 // TestTokenRotationIntegration tests token rotation with database
 // "Rotation is the key to token security." 🔄
 func TestTokenRotationIntegration(t *testing.T) {
+	ctx := context.Background()
 	db := testutils.DB(t)
 
 	// Create test logger
@@ -196,8 +195,7 @@ func TestTokenRotationIntegration(t *testing.T) {
 
 	// Helper to create a test user
 	createTestUser := func(email string) uuid.UUID {
-		ctx := context.Background()
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		require.NoError(t, err)
 
 		var userID uuid.UUID
@@ -226,7 +224,7 @@ func TestTokenRotationIntegration(t *testing.T) {
 		testUserIDString := testUserID.String()
 
 		// Create initial refresh token
-		originalRefreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		originalRefreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 		require.NoError(t, err)
 
 		// Validate original token works
@@ -263,7 +261,7 @@ func TestTokenRotationIntegration(t *testing.T) {
 		testUserIDString := testUserID.String()
 
 		// Start with initial token
-		currentRefreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		currentRefreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 		require.NoError(t, err)
 
 		var previousTokens []string
@@ -300,6 +298,7 @@ func TestTokenRotationIntegration(t *testing.T) {
 // TestConcurrentTokenOperations tests thread safety of token operations
 // "Concurrency is the test of true robustness." ⚡
 func TestConcurrentTokenOperations(t *testing.T) {
+	ctx := context.Background()
 	db := testutils.DB(t)
 
 	// Create test logger
@@ -321,7 +320,7 @@ func TestConcurrentTokenOperations(t *testing.T) {
 
 				for j := 0; j < tokensPerGoroutine; j++ {
 					// Create access token
-					accessToken, err := authService.CreateAccessToken(userID)
+					accessToken, err := authService.CreateAccessToken(ctx, userID)
 					if err != nil {
 						errChan <- err
 						return
@@ -329,7 +328,7 @@ func TestConcurrentTokenOperations(t *testing.T) {
 					tokenChan <- accessToken
 
 					// Create refresh token
-					refreshToken, err := authService.CreateRefreshToken(userID)
+					refreshToken, err := authService.CreateRefreshToken(ctx, userID)
 					if err != nil {
 						errChan <- err
 						return
@@ -365,10 +364,11 @@ func TestConcurrentTokenOperations(t *testing.T) {
 	})
 
 	t.Run("ConcurrentDenylistOperations", func(t *testing.T) {
-		// Create a test user first
 		ctx := context.Background()
+
+		// Create a test user first
 		email := fmt.Sprintf("concurrent-denylist-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		require.NoError(t, err)
 
 		var testUserID uuid.UUID
@@ -398,7 +398,7 @@ func TestConcurrentTokenOperations(t *testing.T) {
 
 		// Create refresh tokens first
 		for i := 0; i < numGoroutines*tokensPerGoroutine; i++ {
-			refreshToken, err := authService.CreateRefreshToken(userID)
+			refreshToken, err := authService.CreateRefreshToken(ctx, userID)
 			require.NoError(t, err)
 			refreshTokens = append(refreshTokens, refreshToken)
 
@@ -456,7 +456,7 @@ func TestPasswordOperationsIntegration(t *testing.T) {
 		password := "TestPassword123!@#"
 
 		// Hash password
-		hashedPassword, err := authService.HashPassword(password)
+		hashedPassword, err := authService.HashPassword(ctx, password)
 		require.NoError(t, err)
 
 		// Create user with hashed password
@@ -515,6 +515,7 @@ func TestAuthServiceCleanupIntegration(t *testing.T) {
 
 // Benchmark integration tests for performance under real database conditions
 func BenchmarkAuthServiceIntegration(b *testing.B) {
+	ctx := context.Background()
 	db := testutils.DB(b)
 
 	// Create test logger
@@ -524,9 +525,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 
 	b.Run("TokenCreationWithDB", func(b *testing.B) {
 		// Create a test user first
-		ctx := context.Background()
 		email := fmt.Sprintf("benchmark-creation-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -554,8 +554,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
-			_, err := authService.CreateRefreshToken(testUserIDString)
+		for range b.N {
+			_, err := authService.CreateRefreshToken(ctx, testUserIDString)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -564,9 +564,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 
 	b.Run("TokenValidationWithDenylistCheck", func(b *testing.B) {
 		// Create a test user first
-		ctx := context.Background()
 		email := fmt.Sprintf("benchmark-validation-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -592,13 +591,13 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 		}
 		testUserIDString := testUserID.String()
 
-		refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := authService.ValidateToken(ctx, refreshToken)
 			if err != nil {
 				b.Fatal(err)
@@ -608,9 +607,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 
 	b.Run("TokenRotationWithDB", func(b *testing.B) {
 		// Create a test user first
-		ctx := context.Background()
 		email := fmt.Sprintf("benchmark-rotation-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -637,9 +635,9 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 		testUserIDString := testUserID.String()
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			b.StopTimer()
-			refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+			refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -654,9 +652,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 
 	b.Run("DenylistOperationWithDB", func(b *testing.B) {
 		// Create a test user first
-		ctx := context.Background()
 		email := fmt.Sprintf("benchmark-denylist-%d@example.com", time.Now().UnixNano())
-		hashedPassword, err := authService.HashPassword("TestPassword123!@#")
+		hashedPassword, err := authService.HashPassword(ctx, "TestPassword123!@#")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -685,8 +682,8 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 		// Pre-create tokens
 		var tokens []string
 		var jtis []string
-		for i := 0; i < b.N; i++ {
-			refreshToken, err := authService.CreateRefreshToken(testUserIDString)
+		for range b.N {
+			refreshToken, err := authService.CreateRefreshToken(ctx, testUserIDString)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -700,7 +697,7 @@ func BenchmarkAuthServiceIntegration(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			err := authService.DenylistRefreshToken(ctx, jtis[i], testUserIDString)
 			if err != nil {
 				b.Fatal(err)

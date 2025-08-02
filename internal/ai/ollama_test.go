@@ -62,7 +62,7 @@ func TestNewOllamaService(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, service)
 				assert.Equal(t, tt.baseURL, service.baseURL)
-				assert.Equal(t, tt.logger, service.logger)
+				assert.NotNil(t, service.logger) // Changed to NotNil since the logger gets modified with service/component info
 				assert.NotNil(t, service.client)
 				assert.Equal(t, 120*time.Second, service.client.Timeout)
 			}
@@ -70,7 +70,7 @@ func TestNewOllamaService(t *testing.T) {
 	}
 }
 
-// TestGenerateInsight tests the basic insight generation functionality
+// TestGenerateInsight tests the insight generation functionality with InsightRequest
 func TestGenerateInsight(t *testing.T) {
 	ctx := context.Background()
 
@@ -78,7 +78,7 @@ func TestGenerateInsight(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		prompt         string
+		request        *InsightRequest
 		serverResponse string
 		serverStatus   int
 		expectError    bool
@@ -87,8 +87,13 @@ func TestGenerateInsight(t *testing.T) {
 		expectedConf   float32
 	}{
 		{
-			name:           "Successful generation",
-			prompt:         "Test prompt",
+			name: "Successful generation",
+			request: &InsightRequest{
+				UserID:      "user123",
+				EntryIDs:    []string{"entry1", "entry2"},
+				InsightType: "productivity",
+				Context:     "Simple string context",
+			},
 			serverResponse: `{"response": "Test insight response", "done": true}`,
 			serverStatus:   http.StatusOK,
 			expectError:    false,
@@ -96,26 +101,61 @@ func TestGenerateInsight(t *testing.T) {
 			expectedConf:   0.8,
 		},
 		{
-			name:        "Empty prompt",
-			prompt:      "",
-			expectError: true,
-			errorMsg:    "prompt cannot be empty",
+			name: "Request with minimal data - still generates valid prompt",
+			request: &InsightRequest{
+				UserID:      "",
+				EntryIDs:    []string{},
+				InsightType: "",
+				Context:     nil,
+			},
+			serverResponse: `{"response": "Minimal data response", "done": true}`,
+			serverStatus:   http.StatusOK,
+			expectError:    false, // Even minimal data generates a valid prompt due to the structured format
+			expectedTags:   []string{"ai-generated", "productivity"},
+			expectedConf:   0.8,
 		},
 		{
-			name:           "Server error",
-			prompt:         "Test prompt",
+			name: "Server error",
+			request: &InsightRequest{
+				UserID:      "user123",
+				EntryIDs:    []string{"entry1"},
+				InsightType: "productivity",
+				Context:     "test context",
+			},
 			serverResponse: `{"error": "Server error"}`,
 			serverStatus:   http.StatusInternalServerError,
 			expectError:    true,
 			errorMsg:       "request failed with status",
 		},
 		{
-			name:           "Invalid JSON response",
-			prompt:         "Test prompt",
+			name: "Invalid JSON response",
+			request: &InsightRequest{
+				UserID:      "user123",
+				EntryIDs:    []string{"entry1"},
+				InsightType: "productivity",
+				Context:     "test context",
+			},
 			serverResponse: `invalid json`,
 			serverStatus:   http.StatusOK,
 			expectError:    true,
 			errorMsg:       "failed to decode response",
+		},
+		{
+			name: "Request with structured context",
+			request: &InsightRequest{
+				UserID:      "user456",
+				EntryIDs:    []string{"entry1", "entry2", "entry3"},
+				InsightType: "skill_development",
+				Context: map[string]any{
+					"focus_areas": []string{"golang", "testing"},
+					"time_period": "last_month",
+				},
+			},
+			serverResponse: `{"response": "Structured context insight", "done": true}`,
+			serverStatus:   http.StatusOK,
+			expectError:    false,
+			expectedTags:   []string{"ai-generated", "productivity"},
+			expectedConf:   0.8,
 		},
 	}
 
@@ -127,17 +167,31 @@ func TestGenerateInsight(t *testing.T) {
 				assert.Equal(t, "/api/generate", r.URL.Path)
 				assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
-				// Verify request body
+				// Verify request body contains the enhanced prompt
 				var req GenerateRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
 				if err == nil {
 					assert.Equal(t, "qwen2.5-coder:7b", req.Model)
-					assert.Equal(t, tt.prompt, req.Prompt)
 					assert.False(t, req.Stream)
+					// For valid requests, verify the prompt contains request information
+					if !tt.expectError || !strings.Contains(tt.errorMsg, "did not generated prompt") {
+						assert.Contains(t, req.Prompt, "--- Request Information ---")
+						if tt.request.UserID != "" {
+							assert.Contains(t, req.Prompt, fmt.Sprintf("User ID: %s", tt.request.UserID))
+						}
+						if tt.request.InsightType != "" {
+							assert.Contains(t, req.Prompt, fmt.Sprintf("Insight Type: %s", tt.request.InsightType))
+						}
+					}
 				}
 
-				w.WriteHeader(tt.serverStatus)
-				_, _ = w.Write([]byte(tt.serverResponse))
+				// Set status code if provided, otherwise default to 200
+				if tt.serverStatus != 0 {
+					w.WriteHeader(tt.serverStatus)
+				}
+				if tt.serverResponse != "" {
+					_, _ = w.Write([]byte(tt.serverResponse))
+				}
 			}))
 			defer server.Close()
 
@@ -145,18 +199,24 @@ func TestGenerateInsight(t *testing.T) {
 			require.NoError(t, err)
 
 			ctx := context.Background()
-			insight, err := service.GenerateInsight(ctx, tt.prompt)
+			insight, err := service.GenerateInsight(ctx, tt.request)
 
 			if tt.expectError {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorMsg)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
 				assert.Nil(t, insight)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, insight)
-				assert.Equal(t, "Test insight response", insight.Content)
-				assert.Equal(t, tt.expectedTags, insight.Tags)
-				assert.Equal(t, tt.expectedConf, insight.Confidence)
+				assert.NotEmpty(t, insight.Content)
+				if tt.expectedTags != nil {
+					assert.Equal(t, tt.expectedTags, insight.Tags)
+				}
+				if tt.expectedConf > 0 {
+					assert.Equal(t, tt.expectedConf, insight.Confidence)
+				}
 			}
 		})
 	}
@@ -187,7 +247,6 @@ func TestGenerateInsightWithContext(t *testing.T) {
 		{
 			name: "Valid request with string context",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1", "entry2"},
 				InsightType: "productivity",
@@ -198,7 +257,6 @@ func TestGenerateInsightWithContext(t *testing.T) {
 		{
 			name: "Valid request with structured context",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1", "entry2"},
 				InsightType: "productivity",
@@ -212,7 +270,6 @@ func TestGenerateInsightWithContext(t *testing.T) {
 		{
 			name: "Valid request with nil context",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1", "entry2"},
 				InsightType: "productivity",
@@ -221,23 +278,21 @@ func TestGenerateInsightWithContext(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "Empty prompt",
+			name: "Empty user ID - still generates valid prompt",
 			request: &InsightRequest{
-				Prompt:      "",
-				UserID:      "user123",
+				UserID:      "",
 				EntryIDs:    []string{"entry1"},
 				InsightType: "productivity",
 				Context:     "context",
 			},
-			expectError: true,
-			errorMsg:    "prompt cannot be empty",
+			expectError: false, // Changed to false because empty userID still generates a valid prompt
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			insight, err := service.GenerateInsightWithContext(ctx, tt.request)
+			insight, err := service.GenerateInsight(ctx, tt.request)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -252,12 +307,10 @@ func TestGenerateInsightWithContext(t *testing.T) {
 	}
 }
 
-// TestBuildEnhancedPrompt tests the prompt enhancement functionality with complete request information
-func TestBuildEnhancedPrompt(t *testing.T) {
+// TestPromptGeneration tests the prompt generation functionality with complete request information
+func TestPromptGeneration(t *testing.T) {
 	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
-	require.NoError(t, err)
 
 	tests := []struct {
 		name     string
@@ -267,14 +320,12 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Complete request with string context",
 			request: &InsightRequest{
-				Prompt:      "Analyze my productivity",
 				UserID:      "user-123",
 				EntryIDs:    []string{"entry-1", "entry-2"},
 				InsightType: "productivity",
 				Context:     "String context data",
 			},
 			contains: []string{
-				"Analyze my productivity",
 				"User ID: user-123",
 				"Insight Type: productivity",
 				"Number of Log Entries: 2",
@@ -287,7 +338,6 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Request with structured context",
 			request: &InsightRequest{
-				Prompt:      "Base prompt",
 				UserID:      "user-456",
 				EntryIDs:    []string{"entry-1"},
 				InsightType: "skill_development",
@@ -297,7 +347,6 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 				},
 			},
 			contains: []string{
-				"Base prompt",
 				"User ID: user-456",
 				"Insight Type: skill_development",
 				"Number of Log Entries: 1",
@@ -310,14 +359,12 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Request with many entry IDs (truncated display)",
 			request: &InsightRequest{
-				Prompt:      "Weekly analysis",
 				UserID:      "user-789",
 				EntryIDs:    []string{"e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8"},
 				InsightType: "time_management",
 				Context:     nil,
 			},
 			contains: []string{
-				"Weekly analysis",
 				"User ID: user-789",
 				"Number of Log Entries: 8",
 				"[e1, e2, e3, ... (3 more), e7, e8]",
@@ -328,14 +375,12 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Request with minimal data",
 			request: &InsightRequest{
-				Prompt:      "Simple prompt",
 				UserID:      "",
 				EntryIDs:    []string{},
 				InsightType: "",
 				Context:     nil,
 			},
 			contains: []string{
-				"Simple prompt",
 				"User ID: ",
 				"Number of Log Entries: 0",
 				"Provide comprehensive analysis",
@@ -345,14 +390,12 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Request with team collaboration type",
 			request: &InsightRequest{
-				Prompt:      "Team work analysis",
 				UserID:      "team-lead",
 				EntryIDs:    []string{"meeting-1", "standup-2"},
 				InsightType: "team_collaboration",
 				Context:     "Weekly team retrospective",
 			},
 			contains: []string{
-				"Team work analysis",
 				"Insight Type: team_collaboration",
 				"Focus on collaboration patterns",
 				"team interactions",
@@ -362,7 +405,6 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 		{
 			name: "Request with custom struct context",
 			request: &InsightRequest{
-				Prompt:      "Custom analysis",
 				UserID:      "user-custom",
 				EntryIDs:    []string{"custom-1"},
 				InsightType: "productivity",
@@ -375,7 +417,6 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 				},
 			},
 			contains: []string{
-				"Custom analysis",
 				"Context Data:",
 				"\"name\": \"test\"",
 				"\"value\": 123",
@@ -385,7 +426,7 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := service.buildEnhancedPrompt(ctx, tt.request)
+			result := tt.request.Prompt(ctx, logger)
 
 			// Check that all expected content is present
 			for _, expected := range tt.contains {
@@ -394,23 +435,19 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 			}
 
 			// Verify basic structure
-			assert.Contains(t, result, tt.request.Prompt, "Should contain original prompt")
 			assert.Contains(t, result, "--- Request Information ---", "Should contain request info section")
 			assert.Contains(t, result, "--- Output Instructions ---", "Should contain output instructions")
 		})
 	}
 }
 
-// TestBuildEnhancedPromptExample demonstrates how the enhanced prompt looks
-func TestBuildEnhancedPromptExample(t *testing.T) {
+// TestPromptGenerationExample demonstrates how the enhanced prompt looks
+func TestPromptGenerationExample(t *testing.T) {
 	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
-	require.NoError(t, err)
 
 	// Create a comprehensive example request
 	req := &InsightRequest{
-		Prompt:      "Please analyze my productivity patterns and provide actionable insights for improvement.",
 		UserID:      "user-12345",
 		EntryIDs:    []string{"entry-001", "entry-002", "entry-003", "entry-004", "entry-005", "entry-006"},
 		InsightType: "productivity",
@@ -428,13 +465,12 @@ func TestBuildEnhancedPromptExample(t *testing.T) {
 		},
 	}
 
-	result := service.buildEnhancedPrompt(ctx, req)
+	result := req.Prompt(ctx, logger)
 
 	// Log the result for demonstration purposes
 	t.Logf("=== Enhanced Prompt Example ===\n%s\n=== End of Example ===", result)
 
 	// Verify it contains key sections
-	assert.Contains(t, result, "Please analyze my productivity patterns")
 	assert.Contains(t, result, "User ID: user-12345")
 	assert.Contains(t, result, "Insight Type: productivity")
 	assert.Contains(t, result, "Number of Log Entries: 6")
@@ -457,7 +493,6 @@ func TestValidateInsightRequest(t *testing.T) {
 		{
 			name: "Valid request",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1", "entry2"},
 				InsightType: "productivity",
@@ -466,20 +501,8 @@ func TestValidateInsightRequest(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "Empty prompt",
-			request: &InsightRequest{
-				Prompt:      "",
-				UserID:      "user123",
-				EntryIDs:    []string{"entry1"},
-				InsightType: "productivity",
-			},
-			expectError: true,
-			errorMsg:    "prompt cannot be empty",
-		},
-		{
 			name: "Empty user ID",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "",
 				EntryIDs:    []string{"entry1"},
 				InsightType: "productivity",
@@ -490,7 +513,6 @@ func TestValidateInsightRequest(t *testing.T) {
 		{
 			name: "Empty insight type",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1"},
 				InsightType: "",
@@ -501,7 +523,6 @@ func TestValidateInsightRequest(t *testing.T) {
 		{
 			name: "Empty entry IDs",
 			request: &InsightRequest{
-				Prompt:      "Test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{},
 				InsightType: "productivity",
@@ -765,17 +786,8 @@ func TestHealthCheck(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/generate", r.URL.Path)
-
-				// Verify it's a health check request
-				var req GenerateRequest
-				err := json.NewDecoder(r.Body).Decode(&req)
-				if err == nil {
-					assert.Equal(t, "qwen2.5-coder:7b", req.Model)
-					assert.Equal(t, "Hello", req.Prompt)
-					assert.False(t, req.Stream)
-				}
+				assert.Equal(t, "GET", r.Method)
+				assert.Equal(t, "/", r.URL.Path)
 
 				w.WriteHeader(tt.serverStatus)
 				_, _ = w.Write([]byte(tt.serverResponse))
@@ -881,7 +893,14 @@ func TestContextCancellation(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 		defer cancel()
 
-		insight, err := service.GenerateInsight(ctx, "test prompt")
+		request := &InsightRequest{
+			UserID:      "user123",
+			EntryIDs:    []string{"entry1"},
+			InsightType: "productivity",
+			Context:     "test context",
+		}
+
+		insight, err := service.GenerateInsight(ctx, request)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "insight generation cancelled")
 		assert.Nil(t, insight)
@@ -932,7 +951,14 @@ func TestRetryMechanism(t *testing.T) {
 	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(t, err)
 
-	insight, err := service.GenerateInsight(ctx, "test prompt")
+	request := &InsightRequest{
+		UserID:      "user123",
+		EntryIDs:    []string{"entry1"},
+		InsightType: "productivity",
+		Context:     "test context",
+	}
+
+	insight, err := service.GenerateInsight(ctx, request)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, insight)
@@ -963,8 +989,13 @@ func TestConcurrentRequests(t *testing.T) {
 	for i := 0; i < numRequests; i++ {
 		go func(id int) {
 			ctx := context.Background()
-			prompt := fmt.Sprintf("Concurrent test prompt %d", id)
-			insight, err := service.GenerateInsight(ctx, prompt)
+			request := &InsightRequest{
+				UserID:      fmt.Sprintf("user%d", id),
+				EntryIDs:    []string{fmt.Sprintf("entry%d", id)},
+				InsightType: "productivity",
+				Context:     fmt.Sprintf("Concurrent test context %d", id),
+			}
+			insight, err := service.GenerateInsight(ctx, request)
 			if err != nil {
 				results <- err
 				return
@@ -1020,7 +1051,6 @@ func TestJSONSerialization(t *testing.T) {
 		{
 			name: "InsightRequest",
 			object: &InsightRequest{
-				Prompt:      "test prompt",
 				UserID:      "user123",
 				EntryIDs:    []string{"entry1", "entry2"},
 				InsightType: "productivity",
@@ -1076,26 +1106,31 @@ func BenchmarkGenerateInsight(b *testing.B) {
 	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(b, err)
 
-	prompt := "Benchmark test prompt for performance measurement"
+	request := &InsightRequest{
+		UserID:      "benchmark-user",
+		EntryIDs:    []string{"entry1", "entry2"},
+		InsightType: "productivity",
+		Context:     "Benchmark test context for performance measurement",
+	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := service.GenerateInsight(ctx, prompt)
+	for range b.N {
+		_, err := service.GenerateInsight(ctx, request)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-// BenchmarkBuildEnhancedPrompt benchmarks the prompt enhancement performance
-func BenchmarkBuildEnhancedPrompt(b *testing.B) {
+// BenchmarkPromptGeneration benchmarks the prompt generation performance
+func BenchmarkPromptGeneration(b *testing.B) {
 	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
-	require.NoError(b, err)
 
 	request := &InsightRequest{
-		Prompt: "Base prompt for benchmark testing with various context types",
+		UserID:      "benchmark-user",
+		EntryIDs:    []string{"entry1", "entry2", "entry3"},
+		InsightType: "productivity",
 		Context: map[string]any{
 			"key1":     "value1",
 			"key2":     42,
@@ -1105,8 +1140,8 @@ func BenchmarkBuildEnhancedPrompt(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = service.buildEnhancedPrompt(ctx, request)
+	for range b.N {
+		_ = request.Prompt(ctx, logger)
 	}
 }
 
@@ -1116,21 +1151,31 @@ func TestEdgeCases(t *testing.T) {
 
 	logger := logging.NewTestLogger()
 
-	t.Run("Very long prompt", func(t *testing.T) {
-		// Create a very long prompt
-		longPrompt := strings.Repeat("This is a very long prompt. ", 1000)
+	t.Run("Very long request with many entries", func(t *testing.T) {
+		// Create a request with many entry IDs and complex context
+		manyEntries := make([]string, 100)
+		for i := 0; i < 100; i++ {
+			manyEntries[i] = fmt.Sprintf("entry-%d", i)
+		}
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"response": "Long prompt response", "done": true}`))
+			_, _ = w.Write([]byte(`{"response": "Long request response", "done": true}`))
 		}))
 		defer server.Close()
 
 		service, err := NewOllamaService(ctx, server.URL, logger)
 		require.NoError(t, err)
 
+		request := &InsightRequest{
+			UserID:      "user123",
+			EntryIDs:    manyEntries,
+			InsightType: "productivity",
+			Context:     strings.Repeat("Very long context data. ", 100),
+		}
+
 		ctx := context.Background()
-		insight, err := service.GenerateInsight(ctx, longPrompt)
+		insight, err := service.GenerateInsight(ctx, request)
 		assert.NoError(t, err)
 		assert.NotNil(t, insight)
 	})
@@ -1157,7 +1202,6 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		request := &InsightRequest{
-			Prompt:      "Test prompt",
 			UserID:      "user123",
 			EntryIDs:    []string{"entry1"},
 			InsightType: "productivity",
@@ -1165,7 +1209,7 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		ctx := context.Background()
-		insight, err := service.GenerateInsightWithContext(ctx, request)
+		insight, err := service.GenerateInsight(ctx, request)
 		assert.NoError(t, err)
 		assert.NotNil(t, insight)
 	})
@@ -1182,9 +1226,43 @@ func TestEdgeCases(t *testing.T) {
 		service, err := NewOllamaService(ctx, server.URL, logger)
 		require.NoError(t, err)
 
-		insight, err := service.GenerateInsight(ctx, "test prompt")
+		request := &InsightRequest{
+			UserID:      "user123",
+			EntryIDs:    []string{"entry1"},
+			InsightType: "productivity",
+			Context:     "test context",
+		}
+
+		insight, err := service.GenerateInsight(ctx, request)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to decode response")
 		assert.Nil(t, insight)
+	})
+
+	t.Run("Minimal data still generates valid prompt", func(t *testing.T) {
+		ctx := context.Background()
+		logger := logging.NewTestLogger()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"response": "Even minimal data generates response", "done": true}`))
+		}))
+		defer server.Close()
+
+		service, err := NewOllamaService(ctx, server.URL, logger)
+		require.NoError(t, err)
+
+		// Create a request with minimal data - should still generate a valid prompt
+		request := &InsightRequest{
+			UserID:      "",
+			EntryIDs:    []string{},
+			InsightType: "",
+			Context:     nil,
+		}
+
+		insight, err := service.GenerateInsight(ctx, request)
+		assert.NoError(t, err) // Should succeed because the prompt structure itself provides content
+		assert.NotNil(t, insight)
+		assert.Equal(t, "Even minimal data generates response", insight.Content)
 	})
 }

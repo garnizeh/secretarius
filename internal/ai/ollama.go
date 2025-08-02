@@ -40,11 +40,116 @@ type Insight struct {
 
 // InsightRequest represents a request for insight generation
 type InsightRequest struct {
-	Prompt      string   `json:"prompt"`
 	UserID      string   `json:"user_id"`
 	EntryIDs    []string `json:"entry_ids"`
 	InsightType string   `json:"insight_type"`
 	Context     any      `json:"context,omitempty"`
+}
+
+// Prompt generates the AI prompt based on the request
+func (r *InsightRequest) Prompt(ctx context.Context, logger *logging.Logger) string {
+	var promptBuilder bytes.Buffer
+
+	// Add structured request information to enhance AI understanding
+	promptBuilder.WriteString("\n\n--- Request Information ---")
+	promptBuilder.WriteString(fmt.Sprintf("\nUser ID: %s", r.UserID))
+	promptBuilder.WriteString(fmt.Sprintf("\nInsight Type: %s", r.InsightType))
+	promptBuilder.WriteString(fmt.Sprintf("\nNumber of Log Entries: %d", len(r.EntryIDs)))
+
+	// Include entry IDs for reference (useful for the AI to understand scope)
+	if len(r.EntryIDs) > 0 {
+		promptBuilder.WriteString("\nLog Entry IDs: ")
+		if len(r.EntryIDs) <= 5 {
+			// Show all IDs if there are 5 or fewer
+			promptBuilder.WriteString(fmt.Sprintf("[%s]", joinStrings(r.EntryIDs, ", ")))
+		} else {
+			// Show first 3 and last 2 with count for larger sets
+			firstThree := r.EntryIDs[:3]
+			lastTwo := r.EntryIDs[len(r.EntryIDs)-2:]
+			promptBuilder.WriteString(fmt.Sprintf("[%s, ... (%d more), %s]",
+				joinStrings(firstThree, ", "),
+				len(r.EntryIDs)-5,
+				joinStrings(lastTwo, ", ")))
+		}
+	}
+
+	// Add insight type specific instructions
+	promptBuilder.WriteString(fmt.Sprintf("\n\nInsight Generation Guidelines for '%s':", r.InsightType))
+	switch r.InsightType {
+	case "productivity":
+		promptBuilder.WriteString("\n- Focus on efficiency patterns, time utilization, and value delivery")
+		promptBuilder.WriteString("\n- Identify high-impact activities and optimization opportunities")
+		promptBuilder.WriteString("\n- Analyze work-life balance and sustainable productivity patterns")
+	case "skill_development":
+		promptBuilder.WriteString("\n- Identify learning opportunities and skill gaps")
+		promptBuilder.WriteString("\n- Track progress in technical and soft skills")
+		promptBuilder.WriteString("\n- Suggest development paths and learning resources")
+	case "time_management":
+		promptBuilder.WriteString("\n- Analyze time allocation across different activity types")
+		promptBuilder.WriteString("\n- Identify time drains and efficiency bottlenecks")
+		promptBuilder.WriteString("\n- Suggest schedule optimization strategies")
+	case "team_collaboration":
+		promptBuilder.WriteString("\n- Focus on collaboration patterns and team interactions")
+		promptBuilder.WriteString("\n- Identify communication effectiveness and team dynamics")
+		promptBuilder.WriteString("\n- Suggest improvements for team productivity")
+	default:
+		promptBuilder.WriteString("\n- Provide comprehensive analysis based on the available data")
+		promptBuilder.WriteString("\n- Focus on actionable insights and practical recommendations")
+	}
+
+	// Handle context data - now as additional structured information
+	if r.Context != nil {
+		promptBuilder.WriteString("\n\n--- Additional Context ---")
+
+		switch contextData := r.Context.(type) {
+		case string:
+			// Backward compatibility - simple string context
+			if contextData != "" {
+				promptBuilder.WriteString(fmt.Sprintf("\nContext: %s", contextData))
+			}
+
+		case map[string]any:
+			// Structured context - serialize to JSON for AI processing
+			if len(contextData) > 0 {
+				contextJSON, err := json.MarshalIndent(contextData, "", "  ")
+				if err != nil {
+					logger.LogWarn(ctx, "Failed to marshal context data, adding basic context info",
+						logging.OperationField, "insight_request_prompt",
+						logging.ErrorField, err)
+					promptBuilder.WriteString(fmt.Sprintf("\nStructured context provided (%d fields)", len(contextData)))
+				} else {
+					promptBuilder.WriteString(fmt.Sprintf("\nStructured Context:\n%s", string(contextJSON)))
+				}
+			}
+
+		default:
+			// Unknown context type - try to convert to JSON
+			logger.LogWarn(ctx, "Unknown context type, attempting JSON serialization",
+				logging.OperationField, "insight_request_prompt",
+				"type", fmt.Sprintf("%T", contextData))
+
+			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
+			if err != nil {
+				logger.LogWarn(ctx, "Failed to serialize unknown context type, adding type info only",
+					logging.OperationField, "insight_request_prompt",
+					logging.ErrorField, err,
+					"type", fmt.Sprintf("%T", contextData))
+				promptBuilder.WriteString(fmt.Sprintf("\nContext Type: %T (serialization failed)", contextData))
+			} else {
+				promptBuilder.WriteString(fmt.Sprintf("\nContext Data:\n%s", string(contextJSON)))
+			}
+		}
+	}
+
+	// Add final instructions for consistent output format
+	promptBuilder.WriteString("\n\n--- Output Instructions ---")
+	promptBuilder.WriteString("\nPlease provide a comprehensive analysis that includes:")
+	promptBuilder.WriteString("\n1. Key findings and patterns identified")
+	promptBuilder.WriteString("\n2. Specific, actionable recommendations")
+	promptBuilder.WriteString("\n3. Confidence level in your analysis (high/medium/low)")
+	promptBuilder.WriteString("\n4. Suggested next steps or areas for deeper investigation")
+
+	return promptBuilder.String()
 }
 
 // WeeklyReportRequest represents a request for weekly report generation
@@ -86,17 +191,23 @@ func NewOllamaService(ctx context.Context, baseURL string, logger *logging.Logge
 	}, nil
 }
 
-// GenerateInsight generates AI insights based on a prompt with retry logic
-func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*Insight, error) {
+// GenerateInsight generates AI insights using structured context
+func (s *OllamaService) GenerateInsight(ctx context.Context, req *InsightRequest) (*Insight, error) {
+	prompt := req.Prompt(ctx, s.logger)
 	if prompt == "" {
-		s.logger.LogError(ctx, fmt.Errorf("empty prompt"), "GenerateInsight called with empty prompt")
-		return nil, fmt.Errorf("prompt cannot be empty")
+		s.logger.LogError(ctx, fmt.Errorf("empty prompt"), "GenerateInsight req did not generated prompt")
+		return nil, fmt.Errorf("invalid request: did not generated prompt")
 	}
 
-	s.logger.LogInfo(ctx, "Starting insight generation",
+	s.logger.LogInfo(ctx, "Starting insight generation with context",
 		logging.OperationField, "generate_insight",
+		logging.UserIDField, req.UserID,
+		"insight_type", req.InsightType,
+		"entry_count", len(req.EntryIDs),
+		"enhanced_prompt_length", len(prompt),
+		"context_type", fmt.Sprintf("%T", req.Context),
 		"prompt_length", len(prompt),
-		"model", "qwen2.5-coder:7b")
+		"model", "qwen2.5-coder:7b") //TODO: the model should be configurable at the constructor level
 
 	// Retry configuration for AI operations
 	maxRetries := 3
@@ -169,136 +280,6 @@ func (s *OllamaService) GenerateInsight(ctx context.Context, prompt string) (*In
 	return nil, fmt.Errorf("failed to generate insight after %d attempts: %w", maxRetries, lastErr)
 }
 
-// GenerateInsightWithContext generates AI insights using structured context
-func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *InsightRequest) (*Insight, error) {
-	if req.Prompt == "" {
-		s.logger.LogError(ctx, fmt.Errorf("empty prompt"), "GenerateInsightWithContext called with empty prompt")
-		return nil, fmt.Errorf("prompt cannot be empty")
-	}
-
-	// Enhance prompt with structured context
-	enhancedPrompt := s.buildEnhancedPrompt(ctx, req)
-
-	s.logger.LogInfo(ctx, "Starting insight generation with context",
-		logging.OperationField, "generate_insight_with_context",
-		logging.UserIDField, req.UserID,
-		"insight_type", req.InsightType,
-		"entry_count", len(req.EntryIDs),
-		"enhanced_prompt_length", len(enhancedPrompt),
-		"context_type", fmt.Sprintf("%T", req.Context))
-
-	return s.GenerateInsight(ctx, enhancedPrompt)
-}
-
-// buildEnhancedPrompt creates an enhanced prompt using all pertinent information from the request
-func (s *OllamaService) buildEnhancedPrompt(ctx context.Context, req *InsightRequest) string {
-	var promptBuilder bytes.Buffer
-
-	// Start with the base prompt
-	promptBuilder.WriteString(req.Prompt)
-
-	// Add structured request information to enhance AI understanding
-	promptBuilder.WriteString("\n\n--- Request Information ---")
-	promptBuilder.WriteString(fmt.Sprintf("\nUser ID: %s", req.UserID))
-	promptBuilder.WriteString(fmt.Sprintf("\nInsight Type: %s", req.InsightType))
-	promptBuilder.WriteString(fmt.Sprintf("\nNumber of Log Entries: %d", len(req.EntryIDs)))
-
-	// Include entry IDs for reference (useful for the AI to understand scope)
-	if len(req.EntryIDs) > 0 {
-		promptBuilder.WriteString("\nLog Entry IDs: ")
-		if len(req.EntryIDs) <= 5 {
-			// Show all IDs if there are 5 or fewer
-			promptBuilder.WriteString(fmt.Sprintf("[%s]", joinStrings(req.EntryIDs, ", ")))
-		} else {
-			// Show first 3 and last 2 with count for larger sets
-			firstThree := req.EntryIDs[:3]
-			lastTwo := req.EntryIDs[len(req.EntryIDs)-2:]
-			promptBuilder.WriteString(fmt.Sprintf("[%s, ... (%d more), %s]",
-				joinStrings(firstThree, ", "),
-				len(req.EntryIDs)-5,
-				joinStrings(lastTwo, ", ")))
-		}
-	}
-
-	// Add insight type specific instructions
-	promptBuilder.WriteString(fmt.Sprintf("\n\nInsight Generation Guidelines for '%s':", req.InsightType))
-	switch req.InsightType {
-	case "productivity":
-		promptBuilder.WriteString("\n- Focus on efficiency patterns, time utilization, and value delivery")
-		promptBuilder.WriteString("\n- Identify high-impact activities and optimization opportunities")
-		promptBuilder.WriteString("\n- Analyze work-life balance and sustainable productivity patterns")
-	case "skill_development":
-		promptBuilder.WriteString("\n- Identify learning opportunities and skill gaps")
-		promptBuilder.WriteString("\n- Track progress in technical and soft skills")
-		promptBuilder.WriteString("\n- Suggest development paths and learning resources")
-	case "time_management":
-		promptBuilder.WriteString("\n- Analyze time allocation across different activity types")
-		promptBuilder.WriteString("\n- Identify time drains and efficiency bottlenecks")
-		promptBuilder.WriteString("\n- Suggest schedule optimization strategies")
-	case "team_collaboration":
-		promptBuilder.WriteString("\n- Focus on collaboration patterns and team interactions")
-		promptBuilder.WriteString("\n- Identify communication effectiveness and team dynamics")
-		promptBuilder.WriteString("\n- Suggest improvements for team productivity")
-	default:
-		promptBuilder.WriteString("\n- Provide comprehensive analysis based on the available data")
-		promptBuilder.WriteString("\n- Focus on actionable insights and practical recommendations")
-	}
-
-	// Handle context data - now as additional structured information
-	if req.Context != nil {
-		promptBuilder.WriteString("\n\n--- Additional Context ---")
-
-		switch contextData := req.Context.(type) {
-		case string:
-			// Backward compatibility - simple string context
-			if contextData != "" {
-				promptBuilder.WriteString(fmt.Sprintf("\nContext: %s", contextData))
-			}
-
-		case map[string]any:
-			// Structured context - serialize to JSON for AI processing
-			if len(contextData) > 0 {
-				contextJSON, err := json.MarshalIndent(contextData, "", "  ")
-				if err != nil {
-					s.logger.LogWarn(ctx, "Failed to marshal context data, adding basic context info",
-						logging.OperationField, "build_enhanced_prompt",
-						logging.ErrorField, err)
-					promptBuilder.WriteString(fmt.Sprintf("\nStructured context provided (%d fields)", len(contextData)))
-				} else {
-					promptBuilder.WriteString(fmt.Sprintf("\nStructured Context:\n%s", string(contextJSON)))
-				}
-			}
-
-		default:
-			// Unknown context type - try to convert to JSON
-			s.logger.LogWarn(ctx, "Unknown context type, attempting JSON serialization",
-				logging.OperationField, "build_enhanced_prompt",
-				"type", fmt.Sprintf("%T", contextData))
-
-			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
-			if err != nil {
-				s.logger.LogWarn(ctx, "Failed to serialize unknown context type, adding type info only",
-					logging.OperationField, "build_enhanced_prompt",
-					logging.ErrorField, err,
-					"type", fmt.Sprintf("%T", contextData))
-				promptBuilder.WriteString(fmt.Sprintf("\nContext Type: %T (serialization failed)", contextData))
-			} else {
-				promptBuilder.WriteString(fmt.Sprintf("\nContext Data:\n%s", string(contextJSON)))
-			}
-		}
-	}
-
-	// Add final instructions for consistent output format
-	promptBuilder.WriteString("\n\n--- Output Instructions ---")
-	promptBuilder.WriteString("\nPlease provide a comprehensive analysis that includes:")
-	promptBuilder.WriteString("\n1. Key findings and patterns identified")
-	promptBuilder.WriteString("\n2. Specific, actionable recommendations")
-	promptBuilder.WriteString("\n3. Confidence level in your analysis (high/medium/low)")
-	promptBuilder.WriteString("\n4. Suggested next steps or areas for deeper investigation")
-
-	return promptBuilder.String()
-}
-
 // joinStrings is a helper function to join string slices (similar to strings.Join but for clarity)
 func joinStrings(strs []string, separator string) string {
 	if len(strs) == 0 {
@@ -319,9 +300,6 @@ func joinStrings(strs []string, separator string) string {
 
 // ValidateInsightRequest validates the insight request structure
 func (s *OllamaService) ValidateInsightRequest(req *InsightRequest) error {
-	if req.Prompt == "" {
-		return fmt.Errorf("prompt cannot be empty")
-	}
 	if req.UserID == "" {
 		return fmt.Errorf("user_id cannot be empty")
 	}
