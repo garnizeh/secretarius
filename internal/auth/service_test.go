@@ -30,14 +30,14 @@ func TestNewAuthService(t *testing.T) {
 
 // TestCreateAccessToken verifies access token creation
 // "Security is not a product, but a process." 🔐
-func TestCreateAccessToken(t *testing.T) {
+func TestCreateAccessToken(ctx context.Context, t *testing.T) {
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 	userID := uuid.New().String()
 
-	token, err := authService.CreateAccessToken(context.Background(), userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -60,14 +60,14 @@ func TestCreateAccessToken(t *testing.T) {
 
 // TestCreateRefreshToken verifies refresh token creation
 // "Trust, but verify." 🎯
-func TestCreateRefreshToken(t *testing.T) {
+func TestCreateRefreshToken(ctx context.Context, t *testing.T) {
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 	userID := uuid.New().String()
 
-	token, err := authService.CreateRefreshToken(context.Background(), userID)
+	token, err := authService.CreateRefreshToken(ctx, userID)
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -175,6 +175,8 @@ func TestValidateTokenWithWrongSigningMethod(t *testing.T) {
 // TestHashPassword verifies password hashing functionality
 // "A password is only as strong as its hash." 💪
 func TestHashPassword(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -204,7 +206,7 @@ func TestHashPassword(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			hash, err := authService.HashPassword(context.Background(), tc.password)
+			hash, err := authService.HashPassword(ctx, tc.password)
 
 			require.NoError(t, err)
 			assert.NotEmpty(t, hash)
@@ -217,13 +219,15 @@ func TestHashPassword(t *testing.T) {
 // TestCheckPassword verifies password validation against hash
 // "Trust is good, verification is better." 🔍
 func TestCheckPassword(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	authService := auth.NewAuthServiceForTest(nil, testLogger, "test-secret-key")
 
 	password := "test-password-123"
-	hash, err := authService.HashPassword(context.Background(), password)
+	hash, err := authService.HashPassword(ctx, password)
 	require.NoError(t, err)
 
 	// Test correct password
@@ -279,6 +283,8 @@ func TestTokenExpiration(t *testing.T) {
 // TestMultipleTokensUniqueness verifies that multiple tokens are unique
 // "Uniqueness is the essence of security." 🎲
 func TestMultipleTokensUniqueness(t *testing.T) {
+	ctx := context.Background()
+	
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -286,8 +292,6 @@ func TestMultipleTokensUniqueness(t *testing.T) {
 	userID := uuid.New().String()
 
 	refreshTokens := make(map[string]bool)
-
-	ctx := context.Background()
 
 	// Generate 10 refresh tokens (these should be unique due to JTI)
 	for i := 0; i < 10; i++ {
@@ -316,6 +320,8 @@ func TestMultipleTokensUniqueness(t *testing.T) {
 // TestGenerateJTI verifies JTI generation uniqueness
 // "Random is the mother of security." 🎰
 func TestGenerateJTI(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -325,8 +331,8 @@ func TestGenerateJTI(t *testing.T) {
 	jtis := make(map[string]bool)
 
 	// Generate multiple refresh tokens and extract their JTIs
-	for i := 0; i < 50; i++ {
-		token, err := authService.CreateRefreshToken(context.Background(), userID)
+	for range 50 {
+		token, err := authService.CreateRefreshToken(ctx, userID)
 		require.NoError(t, err)
 
 		// Parse token to get JTI
@@ -349,6 +355,8 @@ func TestGenerateJTI(t *testing.T) {
 // "Performance is the ultimate test of design." 🚀
 
 func BenchmarkCreateAccessToken(b *testing.B) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -357,7 +365,7 @@ func BenchmarkCreateAccessToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := authService.CreateAccessToken(context.Background(), userID)
+		_, err := authService.CreateAccessToken(ctx, userID)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -365,6 +373,8 @@ func BenchmarkCreateAccessToken(b *testing.B) {
 }
 
 func BenchmarkCreateRefreshToken(b *testing.B) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -373,7 +383,7 @@ func BenchmarkCreateRefreshToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := authService.CreateRefreshToken(context.Background(), userID)
+		_, err := authService.CreateRefreshToken(ctx, userID)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -382,12 +392,13 @@ func BenchmarkCreateRefreshToken(b *testing.B) {
 
 func BenchmarkValidateToken(b *testing.B) {
 	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(context.Background(), userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -402,6 +413,8 @@ func BenchmarkValidateToken(b *testing.B) {
 }
 
 func BenchmarkHashPassword(b *testing.B) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -409,8 +422,8 @@ func BenchmarkHashPassword(b *testing.B) {
 	password := "benchmark-password-123"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := authService.HashPassword(context.Background(), password)
+	for range b.N {
+		_, err := authService.HashPassword(ctx, password)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -418,12 +431,14 @@ func BenchmarkHashPassword(b *testing.B) {
 }
 
 func BenchmarkCheckPassword(b *testing.B) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 	password := "benchmark-password-123"
-	hash, err := authService.HashPassword(context.Background(), password)
+	hash, err := authService.HashPassword(ctx, password)
 	if err != nil {
 		b.Fatal(err)
 	}

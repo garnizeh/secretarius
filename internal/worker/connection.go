@@ -55,8 +55,8 @@ type ConnectionConfig struct {
 }
 
 // NewConnectionManager creates a new connection manager
-func NewConnectionManager(logger *logging.Logger, config *ConnectionConfig) *ConnectionManager {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewConnectionManager(ctx context.Context, logger *logging.Logger, config *ConnectionConfig) *ConnectionManager {
+	ctx, cancel := context.WithCancel(ctx)
 
 	retryConfig := config.RetryConfig
 	if retryConfig == nil {
@@ -216,18 +216,18 @@ func (cm *ConnectionManager) doConnect(ctx context.Context) error {
 		"reconnect_count", cm.reconnectCount)
 
 	// Start connection monitoring
-	go cm.monitorConnection()
+	go cm.monitorConnection(ctx)
 
 	return nil
 }
 
 // GetClient returns the gRPC client with connection health check
-func (cm *ConnectionManager) GetClient() (workerpb.APIWorkerServiceClient, error) {
+func (cm *ConnectionManager) GetClient(ctx context.Context) (workerpb.APIWorkerServiceClient, error) {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 
 	if cm.conn == nil || !cm.connected {
-		cm.logger.LogWarn(context.Background(), "GetClient called on disconnected manager",
+		cm.logger.LogWarn(ctx, "GetClient called on disconnected manager",
 			logging.OperationField, "get_client",
 			"target", cm.target,
 			"connected", cm.connected)
@@ -237,14 +237,14 @@ func (cm *ConnectionManager) GetClient() (workerpb.APIWorkerServiceClient, error
 	// Check connection state
 	state := cm.conn.GetState()
 	if state == connectivity.TransientFailure || state == connectivity.Shutdown {
-		cm.logger.LogWarn(context.Background(), "GetClient called on unhealthy connection",
+		cm.logger.LogWarn(ctx, "GetClient called on unhealthy connection",
 			logging.OperationField, "get_client",
 			"target", cm.target,
 			"state", state.String())
 		return nil, fmt.Errorf("connection to %s is unhealthy: %s", cm.target, state)
 	}
 
-	cm.logger.LogDebug(context.Background(), "Returning healthy gRPC client",
+	cm.logger.LogDebug(ctx, "Returning healthy gRPC client",
 		logging.OperationField, "get_client",
 		"target", cm.target,
 		"state", state.String())
@@ -253,12 +253,12 @@ func (cm *ConnectionManager) GetClient() (workerpb.APIWorkerServiceClient, error
 }
 
 // IsConnected returns whether the connection is healthy
-func (cm *ConnectionManager) IsConnected() bool {
+func (cm *ConnectionManager) IsConnected(ctx context.Context) bool {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 
 	connected := cm.connected
-	cm.logger.LogDebug(context.Background(), "IsConnected check",
+	cm.logger.LogDebug(ctx, "IsConnected check",
 		logging.OperationField, "is_connected",
 		"target", cm.target,
 		"connected", connected)
@@ -267,12 +267,12 @@ func (cm *ConnectionManager) IsConnected() bool {
 }
 
 // GetConnectionState returns the current connection state
-func (cm *ConnectionManager) GetConnectionState() connectivity.State {
+func (cm *ConnectionManager) GetConnectionState(ctx context.Context) connectivity.State {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 
 	state := cm.connectionState
-	cm.logger.LogDebug(context.Background(), "GetConnectionState check",
+	cm.logger.LogDebug(ctx, "GetConnectionState check",
 		logging.OperationField, "get_connection_state",
 		"target", cm.target,
 		"state", state.String())
@@ -281,7 +281,7 @@ func (cm *ConnectionManager) GetConnectionState() connectivity.State {
 }
 
 // GetStats returns connection statistics
-func (cm *ConnectionManager) GetStats() map[string]any {
+func (cm *ConnectionManager) GetStats(ctx context.Context) map[string]any {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
 
@@ -300,7 +300,7 @@ func (cm *ConnectionManager) GetStats() map[string]any {
 		stats["circuit_breaker_"+k] = v
 	}
 
-	cm.logger.LogDebug(context.Background(), "Generated connection statistics",
+	cm.logger.LogDebug(ctx, "Generated connection statistics",
 		logging.OperationField, "get_stats",
 		"target", cm.target,
 		"connected", cm.connected,
@@ -311,8 +311,8 @@ func (cm *ConnectionManager) GetStats() map[string]any {
 }
 
 // monitorConnection monitors the connection health and triggers reconnection if needed
-func (cm *ConnectionManager) monitorConnection() {
-	cm.logger.LogInfo(context.Background(), "Starting connection monitoring",
+func (cm *ConnectionManager) monitorConnection(ctx context.Context) {
+	cm.logger.LogInfo(ctx, "Starting connection monitoring",
 		logging.OperationField, "monitor_connection",
 		"target", cm.target,
 		"health_check_interval", cm.healthCheckInterval)
@@ -323,35 +323,35 @@ func (cm *ConnectionManager) monitorConnection() {
 	for {
 		select {
 		case <-cm.ctx.Done():
-			cm.logger.LogInfo(context.Background(), "Connection monitoring stopped",
+			cm.logger.LogInfo(ctx, "Connection monitoring stopped",
 				logging.OperationField, "monitor_connection",
 				"target", cm.target,
 				"reason", cm.ctx.Err())
 			return
 		case <-ticker.C:
-			if err := cm.checkConnectionHealth(); err != nil {
-				cm.logger.LogWarn(context.Background(), "Connection health check failed",
+			if err := cm.checkConnectionHealth(ctx); err != nil {
+				cm.logger.LogWarn(ctx, "Connection health check failed",
 					logging.OperationField, "monitor_connection",
 					"target", cm.target,
 					logging.ErrorField, err)
-				cm.markDisconnected()
+				cm.markDisconnected(ctx)
 			}
 		}
 	}
 }
 
-func (cm *ConnectionManager) checkConnectionHealth() error {
+func (cm *ConnectionManager) checkConnectionHealth(ctx context.Context) error {
 	cm.mutex.RLock()
 	conn := cm.conn
 	target := cm.target
 	cm.mutex.RUnlock()
 
-	cm.logger.LogDebug(context.Background(), "Checking connection health",
+	cm.logger.LogDebug(ctx, "Checking connection health",
 		logging.OperationField, "check_connection_health",
 		"target", target)
 
 	if conn == nil {
-		cm.logger.LogWarn(context.Background(), "Health check failed: no connection available",
+		cm.logger.LogWarn(ctx, "Health check failed: no connection available",
 			logging.OperationField, "check_connection_health",
 			"target", target)
 		return fmt.Errorf("no connection available")
@@ -362,32 +362,32 @@ func (cm *ConnectionManager) checkConnectionHealth() error {
 	cm.connectionState = state
 	cm.mutex.Unlock()
 
-	cm.logger.LogDebug(context.Background(), "Connection state checked",
+	cm.logger.LogDebug(ctx, "Connection state checked",
 		logging.OperationField, "check_connection_health",
 		"target", target,
 		"state", state.String())
 
 	switch state {
 	case connectivity.Ready, connectivity.Idle:
-		cm.logger.LogDebug(context.Background(), "Connection health check passed",
+		cm.logger.LogDebug(ctx, "Connection health check passed",
 			logging.OperationField, "check_connection_health",
 			"target", target,
 			"state", state.String())
 		return nil
 	case connectivity.Connecting:
 		// Still connecting, not necessarily a failure
-		cm.logger.LogDebug(context.Background(), "Connection still connecting",
+		cm.logger.LogDebug(ctx, "Connection still connecting",
 			logging.OperationField, "check_connection_health",
 			"target", target)
 		return nil
 	case connectivity.TransientFailure, connectivity.Shutdown:
-		cm.logger.LogWarn(context.Background(), "Connection in unhealthy state",
+		cm.logger.LogWarn(ctx, "Connection in unhealthy state",
 			logging.OperationField, "check_connection_health",
 			"target", target,
 			"state", state.String())
 		return fmt.Errorf("connection in bad state: %s", state)
 	default:
-		cm.logger.LogWarn(context.Background(), "Connection in unknown state",
+		cm.logger.LogWarn(ctx, "Connection in unknown state",
 			logging.OperationField, "check_connection_health",
 			"target", target,
 			"state", state.String())
@@ -395,14 +395,14 @@ func (cm *ConnectionManager) checkConnectionHealth() error {
 	}
 }
 
-func (cm *ConnectionManager) markDisconnected() {
+func (cm *ConnectionManager) markDisconnected(ctx context.Context) {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 
 	wasConnected := cm.connected
 	cm.connected = false
 
-	cm.logger.LogWarn(context.Background(), "Connection marked as disconnected",
+	cm.logger.LogWarn(ctx, "Connection marked as disconnected",
 		logging.OperationField, "mark_disconnected",
 		"target", cm.target,
 		"was_connected", wasConnected)
@@ -414,7 +414,7 @@ func (cm *ConnectionManager) Reconnect(ctx context.Context) error {
 		logging.OperationField, "reconnect",
 		"target", cm.target)
 
-	cm.markDisconnected()
+	cm.markDisconnected(ctx)
 
 	err := cm.Connect(ctx)
 	if err != nil {
@@ -431,8 +431,8 @@ func (cm *ConnectionManager) Reconnect(ctx context.Context) error {
 }
 
 // Close closes the connection manager
-func (cm *ConnectionManager) Close() error {
-	cm.logger.LogInfo(context.Background(), "Closing connection manager",
+func (cm *ConnectionManager) Close(ctx context.Context) error {
+	cm.logger.LogInfo(ctx, "Closing connection manager",
 		logging.OperationField, "close",
 		"target", cm.target)
 
@@ -442,7 +442,7 @@ func (cm *ConnectionManager) Close() error {
 	defer cm.mutex.Unlock()
 
 	if cm.conn != nil {
-		cm.logger.LogDebug(context.Background(), "Closing gRPC connection",
+		cm.logger.LogDebug(ctx, "Closing gRPC connection",
 			logging.OperationField, "close",
 			"target", cm.target)
 		err := cm.conn.Close()
@@ -451,11 +451,11 @@ func (cm *ConnectionManager) Close() error {
 		cm.connected = false
 
 		if err != nil {
-			cm.logger.LogError(context.Background(), err, "Error closing gRPC connection",
+			cm.logger.LogError(ctx, err, "Error closing gRPC connection",
 				logging.OperationField, "close",
 				"target", cm.target)
 		} else {
-			cm.logger.LogInfo(context.Background(), "gRPC connection closed successfully",
+			cm.logger.LogInfo(ctx, "gRPC connection closed successfully",
 				logging.OperationField, "close",
 				"target", cm.target)
 		}
@@ -463,7 +463,7 @@ func (cm *ConnectionManager) Close() error {
 		return err
 	}
 
-	cm.logger.LogDebug(context.Background(), "Connection manager closed (no active connection)",
+	cm.logger.LogDebug(ctx, "Connection manager closed (no active connection)",
 		logging.OperationField, "close",
 		"target", cm.target)
 	return nil
@@ -472,14 +472,14 @@ func (cm *ConnectionManager) Close() error {
 // ExecuteWithRetry executes a gRPC call with retry logic
 func (cm *ConnectionManager) ExecuteWithRetry(ctx context.Context, operation string, fn func(client workerpb.APIWorkerServiceClient) error) error {
 	return RetryOperation(ctx, cm.logger, operation, cm.retryConfig, func() error {
-		client, err := cm.GetClient()
+		client, err := cm.GetClient(ctx)
 		if err != nil {
 			// Try to reconnect if client is not available
 			if reconnectErr := cm.Reconnect(ctx); reconnectErr != nil {
 				return fmt.Errorf("failed to reconnect: %w (original error: %w)", reconnectErr, err)
 			}
 
-			client, err = cm.GetClient()
+			client, err = cm.GetClient(ctx)
 			if err != nil {
 				return fmt.Errorf("client still unavailable after reconnect: %w", err)
 			}
@@ -489,7 +489,7 @@ func (cm *ConnectionManager) ExecuteWithRetry(ctx context.Context, operation str
 		if err != nil {
 			// Check if error suggests connection issues
 			if cm.isConnectionError(err) {
-				cm.markDisconnected()
+				cm.markDisconnected(ctx)
 			}
 		}
 

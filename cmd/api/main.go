@@ -95,7 +95,7 @@ func run() error {
 		logging.OperationField, "database_initialization")
 
 	// Initialize Redis client for rate limiting
-	redisClient, err := database.NewRedisClient(cfg.Redis, logger)
+	redisClient, err := database.NewRedisClient(ctx, cfg.Redis, logger)
 	if err != nil {
 		logger.LogError(ctx, err, "Failed to connect to Redis - rate limiting will use fallback mode",
 			logging.OperationField, "redis_initialization")
@@ -104,7 +104,7 @@ func run() error {
 	}
 	defer func() {
 		if redisClient != nil {
-			database.CloseRedisClient(redisClient, logger)
+			database.CloseRedisClient(ctx, redisClient, logger)
 		}
 	}()
 
@@ -131,13 +131,13 @@ func run() error {
 
 	// Initialize gRPC server for worker communication
 	grpcManager := grpc.NewManager(cfg, logger)
-	if err := grpcManager.Start(); err != nil {
+	if err := grpcManager.Start(ctx); err != nil {
 		logger.LogError(ctx, err, "Failed to start gRPC server",
 			logging.OperationField, "grpc_startup")
 		return fmt.Errorf("gRPC server startup failed: %w", err)
 	}
 	defer func() {
-		if err := grpcManager.Stop(); err != nil {
+		if err := grpcManager.Stop(ctx); err != nil {
 			logger.LogError(ctx, err, "Error stopping gRPC server",
 				logging.OperationField, "grpc_shutdown")
 		}

@@ -227,6 +227,7 @@ func TestServer_WorkerHeartbeat(t *testing.T) {
 
 // TestServer_QueueTask tests task queuing functionality
 func TestServer_QueueTask(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfig()
 	logger := createTestLoggerForManager()
 	server := grpc.NewServer(cfg, logger)
@@ -263,7 +264,7 @@ func TestServer_QueueTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := server.QueueTask(tt.task)
+			err := server.QueueTask(ctx, tt.task)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -575,18 +576,17 @@ func TestServer_HealthCheck(t *testing.T) {
 
 // TestServer_HelperMethods tests helper methods
 func TestServer_HelperMethods(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfig()
 	logger := createTestLoggerForManager()
 	server := grpc.NewServer(cfg, logger)
 
 	t.Run("GetActiveWorkers with no workers", func(t *testing.T) {
-		workers := server.GetActiveWorkers()
+		workers := server.GetActiveWorkers(ctx)
 		assert.Empty(t, workers)
 	})
 
 	t.Run("GetActiveWorkers with registered workers", func(t *testing.T) {
-		ctx := context.Background()
-
 		// Register a worker
 		registerReq := &workerpb.RegisterWorkerRequest{
 			WorkerId:   "worker-001",
@@ -600,7 +600,7 @@ func TestServer_HelperMethods(t *testing.T) {
 		_, err := server.RegisterWorker(ctx, registerReq)
 		require.NoError(t, err)
 
-		workers := server.GetActiveWorkers()
+		workers := server.GetActiveWorkers(ctx)
 		assert.Len(t, workers, 1)
 		assert.Contains(t, workers, "worker-001")
 	})
@@ -614,12 +614,13 @@ func TestServer_HelperMethods(t *testing.T) {
 
 // TestServer_Start tests server startup (basic functionality)
 func TestServer_Start(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfig()
 	logger := createTestLoggerForManager()
 	server := grpc.NewServer(cfg, logger)
 
 	t.Run("start with invalid address", func(t *testing.T) {
-		err := server.Start("invalid-address")
+		err := server.Start(ctx, "invalid-address")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to listen")
 	})
@@ -635,7 +636,7 @@ func TestServer_Start(t *testing.T) {
 		// Start server in goroutine since it blocks
 		done := make(chan error, 1)
 		go func() {
-			done <- server.Start(fmt.Sprintf(":%d", port))
+			done <- server.Start(ctx, fmt.Sprintf(":%d", port))
 		}()
 
 		// Give it a moment to start
@@ -653,6 +654,7 @@ func TestServer_Start(t *testing.T) {
 
 // TestServer_TaskQueueFull tests task queue overflow
 func TestServer_TaskQueueFull(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfig()
 	logger := createTestLoggerForManager()
 	server := grpc.NewServer(cfg, logger)
@@ -664,7 +666,7 @@ func TestServer_TaskQueueFull(t *testing.T) {
 			TaskType: workerpb.TaskType_TASK_TYPE_INSIGHT_GENERATION,
 			Payload:  fmt.Sprintf(`{"task_num": %d}`, i),
 		}
-		err := server.QueueTask(task)
+		err := server.QueueTask(ctx, task)
 		assert.NoError(t, err)
 	}
 
@@ -675,7 +677,7 @@ func TestServer_TaskQueueFull(t *testing.T) {
 		Payload:  `{"overflow": true}`,
 	}
 
-	err := server.QueueTask(overflowTask)
+	err := server.QueueTask(ctx, overflowTask)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "queue is full")
 }
@@ -693,6 +695,8 @@ func TestServer_ConcurrentAccess(t *testing.T) {
 
 	// Test concurrent worker registrations
 	t.Run("concurrent worker registrations", func(t *testing.T) {
+		ctx := context.Background()
+		
 		wg.Add(numWorkers)
 
 		for i := 0; i < numWorkers; i++ {
@@ -718,7 +722,7 @@ func TestServer_ConcurrentAccess(t *testing.T) {
 		wg.Wait()
 
 		// Verify all workers are registered
-		workers := server.GetActiveWorkers()
+		workers := server.GetActiveWorkers(ctx)
 		assert.Len(t, workers, numWorkers)
 	})
 
@@ -730,13 +734,14 @@ func TestServer_ConcurrentAccess(t *testing.T) {
 			go func(taskID int) {
 				defer wg.Done()
 
+				ctx := context.Background()
 				task := &workerpb.TaskRequest{
 					TaskId:   fmt.Sprintf("concurrent-task-%d", taskID),
 					TaskType: workerpb.TaskType_TASK_TYPE_INSIGHT_GENERATION,
 					Payload:  fmt.Sprintf(`{"task_id": %d}`, taskID),
 				}
 
-				err := server.QueueTask(task)
+				err := server.QueueTask(ctx, task)
 				assert.NoError(t, err)
 			}(i)
 		}

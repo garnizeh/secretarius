@@ -285,6 +285,8 @@ func TestTagHandler_GetRecentlyUsedTags(t *testing.T) {
 
 // TestTagHandler_SearchTags tests the SearchTags functionality
 func TestTagHandler_SearchTags(t *testing.T) {
+	ctx := context.Background()
+
 	gin.SetMode(gin.TestMode)
 
 	t.Run("successful tag search", func(t *testing.T) {
@@ -297,7 +299,7 @@ func TestTagHandler_SearchTags(t *testing.T) {
 
 		// Create a tag with searchable name
 		description := "Backend development tasks"
-		_, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		_, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:        "backend-development",
 			Description: &description,
 			Color:       "#3B82F6",

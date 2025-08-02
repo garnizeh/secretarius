@@ -48,7 +48,7 @@ func run() error {
 	})
 
 	// Initialize AI service with logger
-	aiService, err := ai.NewOllamaService(cfg.Worker.OllamaURL, logger)
+	aiService, err := ai.NewOllamaService(ctx, cfg.Worker.OllamaURL, logger)
 	if err != nil {
 		logger.LogError(ctx, err, "Failed to initialize AI service",
 			logging.OperationField, "initialize_ai_service")
@@ -75,7 +75,7 @@ func run() error {
 		RetryConfig:         worker.DefaultRetryConfig(),
 	}
 
-	connectionManager := worker.NewConnectionManager(logger, connectionConfig)
+	connectionManager := worker.NewConnectionManager(ctx, logger, connectionConfig)
 
 	// Connect to API server
 	logger.LogInfo(ctx, "Connecting to API server",
@@ -87,13 +87,13 @@ func run() error {
 		return fmt.Errorf("gRPC connection failed: %w", err)
 	}
 	defer func() {
-		connectionManager.Close()
+		connectionManager.Close(ctx)
 		logger.LogInfo(ctx, "gRPC connection closed",
 			logging.OperationField, "close_connection")
 	}()
 
 	// Initialize worker service with connection manager and logger
-	workerService := worker.NewClient(logger, connectionManager, aiService, cfg)
+	workerService := worker.NewClient(ctx, logger, connectionManager, aiService, cfg)
 
 	// Setup HTTP health check server
 	setupHealthHandlers(workerService)
@@ -164,7 +164,8 @@ func run() error {
 // setupHealthHandlers configures HTTP health check endpoints
 func setupHealthHandlers(workerService *worker.Client) {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		if workerService.IsHealthy() {
+		ctx := r.Context()
+		if workerService.IsHealthy(ctx) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("OK"))
 		} else {

@@ -5,7 +5,6 @@
 ## High Priority Tasks
 
 - create rfcs
-- worker.NewClient: needs to receive a context.Context parameter *** não usar context.Background() - validar tudo ***
 - create logger for tests: many testes create their own logger, we should create a common one in testutils
 
 ### 🎯 Task 0125: Hierarchical LLM Model Configuration System

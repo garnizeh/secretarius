@@ -530,13 +530,13 @@ func (s *Server) getRequiredCapability(taskType workerpb.TaskType) workerpb.Work
 }
 
 // QueueTask adds a task to the task queue
-func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
+func (s *Server) QueueTask(ctx context.Context, task *workerpb.TaskRequest) error {
 	start := time.Now()
 
 	// Validate task
 	if task.TaskId == "" {
 		err := fmt.Errorf("task_id is required")
-		s.logger.LogError(context.Background(), err, "Task queue failed - missing task ID",
+		s.logger.LogError(ctx, err, "Task queue failed - missing task ID",
 			logging.OperationField, "queue_task")
 		return err
 	}
@@ -546,7 +546,7 @@ func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
 		duration := time.Since(start)
 		queueSize := len(s.taskQueue)
 
-		s.logger.LogInfo(context.Background(), "Task queued",
+		s.logger.LogInfo(ctx, "Task queued",
 			logging.OperationField, "queue_task",
 			"task_id", task.TaskId,
 			"task_type", task.TaskType,
@@ -555,7 +555,7 @@ func (s *Server) QueueTask(task *workerpb.TaskRequest) error {
 		return nil
 	default:
 		err := fmt.Errorf("task queue is full")
-		s.logger.LogError(context.Background(), err, "Task queue failed - queue is full",
+		s.logger.LogError(ctx, err, "Task queue failed - queue is full",
 			logging.OperationField, "queue_task",
 			"task_id", task.TaskId,
 			"task_type", task.TaskType,
@@ -573,7 +573,7 @@ func (s *Server) GetTaskResult(taskID string) (*TaskResult, bool) {
 }
 
 // GetActiveWorkers returns information about all active workers
-func (s *Server) GetActiveWorkers() map[string]*WorkerInfo {
+func (s *Server) GetActiveWorkers(ctx context.Context) map[string]*WorkerInfo {
 	start := time.Now()
 
 	s.workersMutex.RLock()
@@ -603,7 +603,7 @@ func (s *Server) GetActiveWorkers() map[string]*WorkerInfo {
 	duration := time.Since(start)
 	activeWorkers := len(workers)
 
-	s.logger.LogDebug(context.Background(), "Active workers retrieved",
+	s.logger.LogDebug(ctx, "Active workers retrieved",
 		logging.OperationField, "get_active_workers",
 		"total_workers", totalWorkers,
 		"active_workers", activeWorkers,
@@ -614,12 +614,12 @@ func (s *Server) GetActiveWorkers() map[string]*WorkerInfo {
 }
 
 // Start starts the gRPC server
-func (s *Server) Start(address string) error {
+func (s *Server) Start(ctx context.Context, address string) error {
 	start := time.Now()
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		s.logger.LogError(context.Background(), err, "Failed to listen on address",
+		s.logger.LogError(ctx, err, "Failed to listen on address",
 			"address", address)
 		return fmt.Errorf("failed to listen on %s: %w", address, err)
 	}
@@ -628,7 +628,7 @@ func (s *Server) Start(address string) error {
 	workerpb.RegisterAPIWorkerServiceServer(grpcServer, s)
 
 	setupDuration := time.Since(start)
-	s.logger.LogInfo(context.Background(), "Starting gRPC server",
+	s.logger.LogInfo(ctx, "Starting gRPC server",
 		logging.OperationField, "serve",
 		"address", address,
 		"setup_duration_ms", setupDuration.Milliseconds())
@@ -637,14 +637,14 @@ func (s *Server) Start(address string) error {
 	defer func() {
 		totalDuration := time.Since(start)
 		s.logger.LogShutdown("grpc-server", "serve_completed", true)
-		s.logger.LogInfo(context.Background(), "gRPC server stopped",
+		s.logger.LogInfo(ctx, "gRPC server stopped",
 			logging.OperationField, "serve",
 			"address", address,
 			"total_runtime_ms", totalDuration.Milliseconds())
 	}()
 
 	if err := grpcServer.Serve(lis); err != nil {
-		s.logger.LogError(context.Background(), err, "gRPC server failed",
+		s.logger.LogError(ctx, err, "gRPC server failed",
 			"address", address)
 		return err
 	}
@@ -653,7 +653,7 @@ func (s *Server) Start(address string) error {
 }
 
 // CleanupStalledWorkers removes workers that have been disconnected for too long
-func (s *Server) CleanupStalledWorkers() {
+func (s *Server) CleanupStalledWorkers(ctx context.Context) {
 	start := time.Now()
 
 	s.workersMutex.Lock()
@@ -676,7 +676,7 @@ func (s *Server) CleanupStalledWorkers() {
 			delete(s.workers, id)
 			removedWorkers = append(removedWorkers, id)
 
-			s.logger.LogInfo(context.Background(), "Removed stalled worker",
+			s.logger.LogInfo(ctx, "Removed stalled worker",
 				logging.OperationField, "worker_cleanup",
 				"worker_id", id,
 				"status", worker.Status.String(),
@@ -686,7 +686,7 @@ func (s *Server) CleanupStalledWorkers() {
 	}
 
 	if len(removedWorkers) > 0 {
-		s.logger.LogInfo(context.Background(), "Worker cleanup completed",
+		s.logger.LogInfo(ctx, "Worker cleanup completed",
 			logging.OperationField, "worker_cleanup",
 			"removed_workers", removedWorkers,
 			"total_removed", len(removedWorkers),
@@ -713,7 +713,7 @@ func (s *Server) StartPeriodicCleanup(ctx context.Context) {
 					logging.OperationField, "stop_periodic_cleanup")
 				return
 			case <-ticker.C:
-				s.CleanupStalledWorkers()
+				s.CleanupStalledWorkers(ctx)
 			}
 		}
 	}()

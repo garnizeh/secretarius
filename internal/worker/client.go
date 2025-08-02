@@ -71,8 +71,8 @@ type WorkerStats struct {
 }
 
 // NewClient creates a new worker client with enhanced error handling
-func NewClient(logger *logging.Logger, connectionManager *ConnectionManager, aiService *ai.OllamaService, cfg *config.Config) *Client {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewClient(ctx context.Context, logger *logging.Logger, connectionManager *ConnectionManager, aiService *ai.OllamaService, cfg *config.Config) *Client {
+	ctx, cancel := context.WithCancel(ctx)
 
 	maxTasks := cfg.Worker.MaxConcurrentTasks
 	if maxTasks <= 0 {
@@ -199,7 +199,7 @@ func (c *Client) Start(ctx context.Context) error {
 	c.cancel()
 
 	// Graceful shutdown with timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), c.shutdownTimeout)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, c.shutdownTimeout)
 	defer shutdownCancel()
 
 	// Wait for goroutines to finish or timeout
@@ -219,7 +219,7 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 
 	// Close connection manager
-	if err := c.connectionManager.Close(); err != nil {
+	if err := c.connectionManager.Close(ctx); err != nil {
 		c.logger.LogError(ctx, err, "Failed to close connection manager",
 			logging.OperationField, "close_connection_manager")
 	} else {
@@ -309,10 +309,10 @@ func (c *Client) connectionHealthRoutine(ctx context.Context) {
 				logging.OperationField, "connection_health_routine")
 			return
 		case <-ticker.C:
-			if !c.connectionManager.IsConnected() {
+			if !c.connectionManager.IsConnected(ctx) {
 				c.logger.LogWarn(ctx, "Connection manager reports disconnected state",
 					logging.OperationField, "connection_health_routine",
-					"connection_state", c.connectionManager.GetConnectionState())
+					"connection_state", c.connectionManager.GetConnectionState(ctx))
 				c.setConnected(false)
 
 				// Attempt reconnection
@@ -792,12 +792,12 @@ func (c *Client) statisticsRoutine(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			c.logStatistics()
+			c.logStatistics(ctx)
 		}
 	}
 }
 
-func (c *Client) logStatistics() {
+func (c *Client) logStatistics(ctx context.Context) {
 	c.stats.mutex.RLock()
 	stats := map[string]any{
 		"worker_id":       c.workerID,
@@ -810,7 +810,7 @@ func (c *Client) logStatistics() {
 	c.stats.mutex.RUnlock()
 
 	// Add connection stats
-	connectionStats := c.connectionManager.GetStats()
+	connectionStats := c.connectionManager.GetStats(ctx)
 	for k, v := range connectionStats {
 		stats["connection_"+k] = v
 	}
@@ -826,7 +826,7 @@ func (c *Client) logStatistics() {
 		stats["task_processing_breaker_"+k] = v
 	}
 
-	c.logger.LogInfo(context.Background(), "Worker statistics",
+	c.logger.LogInfo(ctx, "Worker statistics",
 		logging.OperationField, "log_statistics",
 		"stats", stats)
 }
@@ -866,9 +866,9 @@ func (c *Client) getWorkerStatus() workerpb.WorkerStatus {
 }
 
 // Health check methods
-func (c *Client) IsHealthy() bool {
+func (c *Client) IsHealthy(ctx context.Context) bool {
 	// Check gRPC connection and AI service
-	return c.isConnected() && c.aiService.HealthCheck(context.Background()) == nil
+	return c.isConnected() && c.aiService.HealthCheck(ctx) == nil
 }
 
 func (c *Client) IsReady() bool {

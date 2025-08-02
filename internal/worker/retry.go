@@ -196,15 +196,15 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 	err := fn()
 
 	if err != nil {
-		cb.onFailure()
+		cb.onFailure(ctx)
 		return err
 	}
 
-	cb.onSuccess()
+	cb.onSuccess(ctx)
 	return nil
 }
 
-func (cb *CircuitBreaker) onSuccess() {
+func (cb *CircuitBreaker) onSuccess(ctx context.Context) {
 	switch cb.state {
 	case CircuitBreakerClosed:
 		cb.consecutiveFailures = 0
@@ -213,7 +213,7 @@ func (cb *CircuitBreaker) onSuccess() {
 		if cb.consecutiveSuccesses >= cb.successThreshold {
 			cb.state = CircuitBreakerClosed
 			cb.consecutiveFailures = 0
-			cb.logger.LogInfo(context.Background(), "Circuit breaker closed after successful recovery",
+			cb.logger.LogInfo(ctx, "Circuit breaker closed after successful recovery",
 				logging.OperationField, "circuit_breaker_recovery",
 				"name", cb.name,
 				"consecutive_successes", cb.consecutiveSuccesses)
@@ -221,7 +221,7 @@ func (cb *CircuitBreaker) onSuccess() {
 	}
 }
 
-func (cb *CircuitBreaker) onFailure() {
+func (cb *CircuitBreaker) onFailure(ctx context.Context) {
 	cb.lastFailureTime = time.Now()
 
 	switch cb.state {
@@ -229,7 +229,7 @@ func (cb *CircuitBreaker) onFailure() {
 		cb.consecutiveFailures++
 		if cb.consecutiveFailures >= cb.failureThreshold {
 			cb.state = CircuitBreakerOpen
-			cb.logger.LogWarn(context.Background(), "Circuit breaker opened due to consecutive failures",
+			cb.logger.LogWarn(ctx, "Circuit breaker opened due to consecutive failures",
 				logging.OperationField, "circuit_breaker_failure",
 				"name", cb.name,
 				"consecutive_failures", cb.consecutiveFailures,
@@ -238,7 +238,7 @@ func (cb *CircuitBreaker) onFailure() {
 	case CircuitBreakerHalfOpen:
 		cb.state = CircuitBreakerOpen
 		cb.consecutiveSuccesses = 0
-		cb.logger.LogWarn(context.Background(), "Circuit breaker opened from half-open state",
+		cb.logger.LogWarn(ctx, "Circuit breaker opened from half-open state",
 			logging.OperationField, "circuit_breaker_failure",
 			"name", cb.name)
 	}

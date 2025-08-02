@@ -62,7 +62,7 @@ type WeeklyReport struct {
 }
 
 // NewOllamaService creates a new Ollama service instance with retry configuration
-func NewOllamaService(baseURL string, logger *logging.Logger) (*OllamaService, error) {
+func NewOllamaService(ctx context.Context, baseURL string, logger *logging.Logger) (*OllamaService, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("ollama base URL cannot be empty")
 	}
@@ -72,7 +72,7 @@ func NewOllamaService(baseURL string, logger *logging.Logger) (*OllamaService, e
 	}
 
 	serviceLogger := logger.WithServiceAndComponent("worker", "ollama_service")
-	serviceLogger.LogInfo(context.Background(), "Creating new Ollama service",
+	serviceLogger.LogInfo(ctx, "Creating new Ollama service",
 		logging.OperationField, "new_ollama_service",
 		"base_url", baseURL,
 		"timeout", "120s")
@@ -177,7 +177,7 @@ func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *Ins
 	}
 
 	// Enhance prompt with structured context
-	enhancedPrompt := s.buildEnhancedPrompt(req)
+	enhancedPrompt := s.buildEnhancedPrompt(ctx, req)
 
 	s.logger.LogInfo(ctx, "Starting insight generation with context",
 		logging.OperationField, "generate_insight_with_context",
@@ -191,7 +191,7 @@ func (s *OllamaService) GenerateInsightWithContext(ctx context.Context, req *Ins
 }
 
 // buildEnhancedPrompt creates an enhanced prompt using all pertinent information from the request
-func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
+func (s *OllamaService) buildEnhancedPrompt(ctx context.Context, req *InsightRequest) string {
 	var promptBuilder bytes.Buffer
 
 	// Start with the base prompt
@@ -260,7 +260,7 @@ func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
 			if len(contextData) > 0 {
 				contextJSON, err := json.MarshalIndent(contextData, "", "  ")
 				if err != nil {
-					s.logger.LogWarn(context.Background(), "Failed to marshal context data, adding basic context info",
+					s.logger.LogWarn(ctx, "Failed to marshal context data, adding basic context info",
 						logging.OperationField, "build_enhanced_prompt",
 						logging.ErrorField, err)
 					promptBuilder.WriteString(fmt.Sprintf("\nStructured context provided (%d fields)", len(contextData)))
@@ -271,13 +271,13 @@ func (s *OllamaService) buildEnhancedPrompt(req *InsightRequest) string {
 
 		default:
 			// Unknown context type - try to convert to JSON
-			s.logger.LogWarn(context.Background(), "Unknown context type, attempting JSON serialization",
+			s.logger.LogWarn(ctx, "Unknown context type, attempting JSON serialization",
 				logging.OperationField, "build_enhanced_prompt",
 				"type", fmt.Sprintf("%T", contextData))
 
 			contextJSON, err := json.MarshalIndent(contextData, "", "  ")
 			if err != nil {
-				s.logger.LogWarn(context.Background(), "Failed to serialize unknown context type, adding type info only",
+				s.logger.LogWarn(ctx, "Failed to serialize unknown context type, adding type info only",
 					logging.OperationField, "build_enhanced_prompt",
 					logging.ErrorField, err,
 					"type", fmt.Sprintf("%T", contextData))

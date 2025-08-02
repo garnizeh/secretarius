@@ -18,6 +18,8 @@ import (
 // TestRequireAuthMiddleware tests the authentication middleware
 // "Middleware is the guardian of the gate." 🚪
 func TestRequireAuthMiddleware(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -32,7 +34,7 @@ func TestRequireAuthMiddleware(t *testing.T) {
 	}{
 		{
 			name:           "valid bearer token",
-			authHeader:     "Bearer " + createValidToken(t, authService),
+			authHeader:     "Bearer " + createValidToken(ctx, t, authService),
 			expectedStatus: http.StatusOK,
 			expectUserID:   true,
 		},
@@ -110,6 +112,8 @@ func TestRequireAuthMiddleware(t *testing.T) {
 // TestOptionalAuthMiddleware tests the optional authentication middleware
 // "Optional security is still security." 🔓
 func TestOptionalAuthMiddleware(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -123,7 +127,7 @@ func TestOptionalAuthMiddleware(t *testing.T) {
 	}{
 		{
 			name:         "valid bearer token",
-			authHeader:   "Bearer " + createValidToken(t, authService),
+			authHeader:   "Bearer " + createValidToken(ctx, t, authService),
 			expectUserID: true,
 		},
 		{
@@ -224,13 +228,15 @@ func TestRefreshTokenWithMiddleware(t *testing.T) {
 // TestCaseInsensitiveBearerToken tests case insensitive bearer token parsing
 // "Case sensitivity is the enemy of usability." 📝
 func TestCaseInsensitiveBearerToken(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	gin.SetMode(gin.TestMode)
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 
-	token := createValidToken(t, authService)
+	token := createValidToken(ctx, t, authService)
 
 	testCases := []struct {
 		name       string
@@ -293,13 +299,15 @@ func TestCaseInsensitiveBearerToken(t *testing.T) {
 // TestMultipleSpacesInAuthHeader tests handling of multiple spaces in auth header
 // "Spaces should not break security." 🌌
 func TestMultipleSpacesInAuthHeader(t *testing.T) {
+	ctx := context.Background()
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
 	gin.SetMode(gin.TestMode)
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 
-	token := createValidToken(t, authService)
+	token := createValidToken(ctx, t, authService)
 
 	testCases := []struct {
 		name       string
@@ -349,9 +357,9 @@ func TestMultipleSpacesInAuthHeader(t *testing.T) {
 }
 
 // Helper function to create a valid access token for testing
-func createValidToken(t *testing.T, authService *auth.AuthService) string {
+func createValidToken(ctx context.Context, t *testing.T, authService *auth.AuthService) string {
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(context.Background(), userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 	require.NoError(t, err)
 	return token
 }
@@ -366,8 +374,9 @@ func BenchmarkRequireAuthMiddleware(b *testing.B) {
 	gin.SetMode(gin.TestMode)
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 
+	ctx := context.Background()
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(context.Background(), userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -388,6 +397,8 @@ func BenchmarkRequireAuthMiddleware(b *testing.B) {
 }
 
 func BenchmarkOptionalAuthMiddleware(b *testing.B) {
+	ctx := context.Background()
+	
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -395,7 +406,7 @@ func BenchmarkOptionalAuthMiddleware(b *testing.B) {
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(context.Background(), userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 	if err != nil {
 		b.Fatal(err)
 	}
