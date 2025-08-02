@@ -179,6 +179,7 @@ func TestTagHandler_Integration_FullWorkflow(t *testing.T) {
 
 // TestTagHandler_Integration_CrossSystemBehavior tests tag behavior across different system components
 func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
+	ctx := context.Background()
 	gin.SetMode(gin.TestMode)
 
 	t.Run("tag usage in log entries affects popular tags", func(t *testing.T) {
@@ -373,6 +374,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 // TestTagHandler_Integration_SecurityBehavior tests security-related tag behavior
 func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
+	ctx := context.Background()
 	gin.SetMode(gin.TestMode)
 
 	t.Run("unauthorized access prevention", func(t *testing.T) {
@@ -581,6 +583,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 
 // TestTagHandler_Integration_PerformanceAndReliability tests performance and reliability aspects
 func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
+	ctx := context.Background()
 	gin.SetMode(gin.TestMode)
 
 	t.Run("bulk tag operations performance", func(t *testing.T) {

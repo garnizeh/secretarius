@@ -27,6 +27,8 @@ import (
 
 // Integration tests for gRPC server and manager working together
 func TestGRPCIntegration(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("full worker lifecycle", func(t *testing.T) {
 		// Setup
 		cfg := createTestConfigForIntegration()
@@ -34,10 +36,10 @@ func TestGRPCIntegration(t *testing.T) {
 		manager := grpc.NewManager(cfg, logger)
 
 		// Start server
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
@@ -101,6 +103,7 @@ func TestGRPCIntegration(t *testing.T) {
 
 		// Test 3: Queue tasks through manager
 		insightTaskID, err := manager.QueueInsightGenerationTask(
+			ctx,
 			"integration-user-001",
 			[]string{"entry-1", "entry-2", "entry-3"},
 			"productivity",
@@ -110,6 +113,7 @@ func TestGRPCIntegration(t *testing.T) {
 		assert.NotEmpty(t, insightTaskID)
 
 		reportTaskID, err := manager.QueueWeeklyReportTask(
+			ctx,
 			"integration-user-001",
 			time.Now().AddDate(0, 0, -7),
 			time.Now(),
@@ -141,7 +145,7 @@ func TestGRPCIntegration(t *testing.T) {
 		assert.True(t, taskResultResp.ResultReceived)
 
 		// Test 6: Retrieve task result through manager
-		result, found := manager.GetTaskResult(insightTaskID)
+		result, found := manager.GetTaskResult(ctx, insightTaskID)
 		assert.True(t, found)
 		assert.NotNil(t, result)
 		assert.Equal(t, insightTaskID, result.TaskID)
@@ -150,7 +154,7 @@ func TestGRPCIntegration(t *testing.T) {
 		assert.Contains(t, result.Result, "insights")
 
 		// Test 7: Get active workers through manager
-		workers := manager.GetActiveWorkers()
+		workers := manager.GetActiveWorkers(ctx)
 		assert.Len(t, workers, 1)
 		assert.Contains(t, workers, "integration-worker-001")
 
@@ -160,15 +164,17 @@ func TestGRPCIntegration(t *testing.T) {
 	})
 
 	t.Run("multiple workers task distribution", func(t *testing.T) {
+		ctx := context.Background()
+
 		// Setup
 		cfg := createTestConfigForIntegration()
 		logger := createTestLoggerForIntegration()
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
@@ -213,6 +219,7 @@ func TestGRPCIntegration(t *testing.T) {
 
 		for i := 0; i < numTasks; i++ {
 			taskID, err := manager.QueueInsightGenerationTask(
+				ctx,
 				fmt.Sprintf("user-%d", i+1),
 				[]string{fmt.Sprintf("entry-%d", i+1)},
 				"productivity",
@@ -223,7 +230,7 @@ func TestGRPCIntegration(t *testing.T) {
 		}
 
 		// Verify all workers are active
-		activeWorkers := manager.GetActiveWorkers()
+		activeWorkers := manager.GetActiveWorkers(ctx)
 		assert.Len(t, activeWorkers, numWorkers)
 
 		// Health check should show all workers
@@ -235,7 +242,6 @@ func TestGRPCIntegration(t *testing.T) {
 		defer conn.Close()
 
 		client := workerpb.NewAPIWorkerServiceClient(conn)
-		ctx := context.Background()
 
 		healthResp, err := client.HealthCheck(ctx, &emptypb.Empty{})
 		require.NoError(t, err)
@@ -243,22 +249,22 @@ func TestGRPCIntegration(t *testing.T) {
 	})
 
 	t.Run("worker disconnection and reconnection", func(t *testing.T) {
+		ctx := context.Background()
+
 		// Setup
 		cfg := createTestConfigForIntegration()
 		logger := createTestLoggerForIntegration()
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
 
 		time.Sleep(50 * time.Millisecond)
-
-		ctx := context.Background()
 
 		// Create and register worker
 		conn, err := grpcClient.NewClient(
@@ -283,7 +289,7 @@ func TestGRPCIntegration(t *testing.T) {
 		sessionToken := registerResp.SessionToken
 
 		// Verify worker is active
-		workers := manager.GetActiveWorkers()
+		workers := manager.GetActiveWorkers(ctx)
 		assert.Len(t, workers, 1)
 
 		// Simulate disconnection by closing connection
@@ -311,20 +317,22 @@ func TestGRPCIntegration(t *testing.T) {
 		assert.NotEqual(t, sessionToken, reRegisterResp.SessionToken)
 
 		// Verify worker is active again
-		workers = manager.GetActiveWorkers()
+		workers = manager.GetActiveWorkers(ctx)
 		assert.Len(t, workers, 1)
 	})
 
 	t.Run("error handling and recovery", func(t *testing.T) {
+		ctx := context.Background()
+
 		// Setup
 		cfg := createTestConfigForIntegration()
 		logger := createTestLoggerForIntegration()
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
@@ -339,7 +347,6 @@ func TestGRPCIntegration(t *testing.T) {
 		defer conn.Close()
 
 		client := workerpb.NewAPIWorkerServiceClient(conn)
-		ctx := context.Background()
 
 		// Test invalid registration
 		invalidReq := &workerpb.RegisterWorkerRequest{
@@ -392,15 +399,17 @@ func TestGRPCIntegration(t *testing.T) {
 // TestGRPCConcurrency tests concurrent operations in integration scenarios
 func TestGRPCConcurrency(t *testing.T) {
 	t.Run("concurrent worker registrations and task queuing", func(t *testing.T) {
+		ctx := context.Background()
+
 		// Setup
 		cfg := createTestConfigForIntegration()
 		logger := createTestLoggerForIntegration()
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
@@ -415,7 +424,7 @@ func TestGRPCConcurrency(t *testing.T) {
 		taskIDs := make(chan string, numWorkers*numTasksPerWorker)
 
 		// Launch concurrent workers
-		for i := 0; i < numWorkers; i++ {
+		for i := range numWorkers {
 			wg.Add(1)
 			go func(workerID int) {
 				defer wg.Done()
@@ -432,7 +441,6 @@ func TestGRPCConcurrency(t *testing.T) {
 				defer conn.Close()
 
 				client := workerpb.NewAPIWorkerServiceClient(conn)
-				ctx := context.Background()
 
 				// Register worker
 				registerReq := &workerpb.RegisterWorkerRequest{
@@ -453,6 +461,7 @@ func TestGRPCConcurrency(t *testing.T) {
 				// Queue tasks concurrently
 				for j := 0; j < numTasksPerWorker; j++ {
 					taskID, err := manager.QueueInsightGenerationTask(
+						ctx,
 						fmt.Sprintf("user-%d-%d", workerID, j),
 						[]string{fmt.Sprintf("entry-%d-%d", workerID, j)},
 						"productivity",
@@ -507,7 +516,7 @@ func TestGRPCConcurrency(t *testing.T) {
 		assert.Len(t, collectedTaskIDs, numWorkers*numTasksPerWorker)
 
 		// Verify all workers are registered
-		workers := manager.GetActiveWorkers()
+		workers := manager.GetActiveWorkers(ctx)
 		assert.Len(t, workers, numWorkers)
 	})
 }

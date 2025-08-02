@@ -275,7 +275,7 @@ func BenchmarkStoreStructs(b *testing.B) {
 func benchmarkCreateUserParams(b *testing.B) {
 	preferences := json.RawMessage(`{"theme": "dark"}`)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = store.CreateUserParams{
 			Email:        "test@example.com",
 			PasswordHash: "hashed",
@@ -294,7 +294,7 @@ func benchmarkCreateProjectParams(b *testing.B) {
 	status := pgtype.Text{String: "active", Valid: true}
 	isDefault := pgtype.Bool{Bool: true, Valid: true}
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = store.CreateProjectParams{
 			Name:        "Test Project",
 			Description: description,
@@ -318,7 +318,7 @@ func benchmarkCreateLogEntryParams(b *testing.B) {
 	endTime := pgtype.Timestamptz{}
 	_ = endTime.Scan(time.Now().Add(time.Hour))
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = store.CreateLogEntryParams{
 			UserID:      userID,
 			ProjectID:   projectID,

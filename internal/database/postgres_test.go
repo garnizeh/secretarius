@@ -509,7 +509,7 @@ func BenchmarkDatabaseOperations(b *testing.B) {
 
 	b.Run("CreateUser", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			err := db.Write(ctx, func(qtx *store.Queries) error {
 				_, err := qtx.CreateUser(ctx, store.CreateUserParams{
 					Email:        fmt.Sprintf("benchmark-user-%d-%d@example.com", time.Now().UnixNano(), i),
@@ -550,7 +550,7 @@ func BenchmarkDatabaseOperations(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			err := db.Read(ctx, func(qtx *store.Queries) error {
 				_, err := qtx.GetUserByID(ctx, userID)
 				return err

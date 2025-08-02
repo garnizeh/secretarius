@@ -384,7 +384,7 @@ func BenchmarkRequireAuthMiddleware(b *testing.B) {
 	middleware := authService.RequireAuth()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 
@@ -398,7 +398,7 @@ func BenchmarkRequireAuthMiddleware(b *testing.B) {
 
 func BenchmarkOptionalAuthMiddleware(b *testing.B) {
 	ctx := context.Background()
-	
+
 	// Create test logger
 	testLogger := logging.NewTestLogger()
 
@@ -414,7 +414,7 @@ func BenchmarkOptionalAuthMiddleware(b *testing.B) {
 	middleware := authService.OptionalAuth()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 
