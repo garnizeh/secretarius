@@ -117,7 +117,7 @@ func TestSessionManagement(t *testing.T) {
 		// Create unique tokens for this test with specific suffix
 		accessToken, err := authService.CreateAccessToken(ctx, userID)
 		require.NoError(t, err)
-		
+
 		// Add unique suffix to ensure test isolation
 		accessToken = accessToken + "_deactivate_test"
 
