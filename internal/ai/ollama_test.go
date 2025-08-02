@@ -17,6 +17,8 @@ import (
 
 // TestNewOllamaService tests the creation of OllamaService instances
 func TestNewOllamaService(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	tests := []struct {
@@ -50,7 +52,7 @@ func TestNewOllamaService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, err := NewOllamaService(tt.baseURL, tt.logger)
+			service, err := NewOllamaService(ctx, tt.baseURL, tt.logger)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -70,6 +72,8 @@ func TestNewOllamaService(t *testing.T) {
 
 // TestGenerateInsight tests the basic insight generation functionality
 func TestGenerateInsight(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	tests := []struct {
@@ -137,7 +141,7 @@ func TestGenerateInsight(t *testing.T) {
 			}))
 			defer server.Close()
 
-			service, err := NewOllamaService(server.URL, logger)
+			service, err := NewOllamaService(ctx, server.URL, logger)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -160,6 +164,8 @@ func TestGenerateInsight(t *testing.T) {
 
 // TestGenerateInsightWithContext tests the context-aware insight generation
 func TestGenerateInsightWithContext(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	// Create mock server
@@ -169,7 +175,7 @@ func TestGenerateInsightWithContext(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewOllamaService(server.URL, logger)
+	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -248,8 +254,9 @@ func TestGenerateInsightWithContext(t *testing.T) {
 
 // TestBuildEnhancedPrompt tests the prompt enhancement functionality with complete request information
 func TestBuildEnhancedPrompt(t *testing.T) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService("http://localhost:11434", logger)
+	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -378,7 +385,7 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := service.buildEnhancedPrompt(tt.request)
+			result := service.buildEnhancedPrompt(ctx, tt.request)
 
 			// Check that all expected content is present
 			for _, expected := range tt.contains {
@@ -396,8 +403,9 @@ func TestBuildEnhancedPrompt(t *testing.T) {
 
 // TestBuildEnhancedPromptExample demonstrates how the enhanced prompt looks
 func TestBuildEnhancedPromptExample(t *testing.T) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService("http://localhost:11434", logger)
+	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
 	require.NoError(t, err)
 
 	// Create a comprehensive example request
@@ -420,7 +428,7 @@ func TestBuildEnhancedPromptExample(t *testing.T) {
 		},
 	}
 
-	result := service.buildEnhancedPrompt(req)
+	result := service.buildEnhancedPrompt(ctx, req)
 
 	// Log the result for demonstration purposes
 	t.Logf("=== Enhanced Prompt Example ===\n%s\n=== End of Example ===", result)
@@ -435,8 +443,9 @@ func TestBuildEnhancedPromptExample(t *testing.T) {
 	assert.Contains(t, result, "performance_metrics")
 } // TestValidateInsightRequest tests the insight request validation
 func TestValidateInsightRequest(t *testing.T) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService("http://localhost:11434", logger)
+	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -518,8 +527,9 @@ func TestValidateInsightRequest(t *testing.T) {
 
 // TestValidateContextForInsightType tests context validation for different insight types
 func TestValidateContextForInsightType(t *testing.T) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService("http://localhost:11434", logger)
+	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -650,6 +660,8 @@ func TestValidateContextForInsightType(t *testing.T) {
 
 // TestGenerateWeeklyReport tests the weekly report generation functionality
 func TestGenerateWeeklyReport(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	tests := []struct {
@@ -700,7 +712,7 @@ func TestGenerateWeeklyReport(t *testing.T) {
 			}))
 			defer server.Close()
 
-			service, err := NewOllamaService(server.URL, logger)
+			service, err := NewOllamaService(ctx, server.URL, logger)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -723,6 +735,8 @@ func TestGenerateWeeklyReport(t *testing.T) {
 
 // TestHealthCheck tests the health check functionality
 func TestHealthCheck(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	tests := []struct {
@@ -768,7 +782,7 @@ func TestHealthCheck(t *testing.T) {
 			}))
 			defer server.Close()
 
-			service, err := NewOllamaService(server.URL, logger)
+			service, err := NewOllamaService(ctx, server.URL, logger)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -786,6 +800,8 @@ func TestHealthCheck(t *testing.T) {
 
 // TestGenerateWithTimeout tests the timeout functionality
 func TestGenerateWithTimeout(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	tests := []struct {
@@ -826,7 +842,7 @@ func TestGenerateWithTimeout(t *testing.T) {
 			}))
 			defer server.Close()
 
-			service, err := NewOllamaService(server.URL, logger)
+			service, err := NewOllamaService(ctx, server.URL, logger)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -846,6 +862,8 @@ func TestGenerateWithTimeout(t *testing.T) {
 
 // TestContextCancellation tests context cancellation scenarios
 func TestContextCancellation(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	// Create mock server with delay
@@ -856,11 +874,11 @@ func TestContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewOllamaService(server.URL, logger)
+	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(t, err)
 
 	t.Run("GenerateInsight context cancellation", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 		defer cancel()
 
 		insight, err := service.GenerateInsight(ctx, "test prompt")
@@ -870,7 +888,7 @@ func TestContextCancellation(t *testing.T) {
 	})
 
 	t.Run("GenerateWeeklyReport context cancellation", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 		defer cancel()
 
 		weekStart := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -883,7 +901,7 @@ func TestContextCancellation(t *testing.T) {
 	})
 
 	t.Run("HealthCheck context cancellation", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 		defer cancel()
 
 		err := service.HealthCheck(ctx)
@@ -894,6 +912,7 @@ func TestContextCancellation(t *testing.T) {
 
 // TestRetryMechanism tests the retry functionality for failed requests
 func TestRetryMechanism(t *testing.T) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
 	attemptCount := 0
 
@@ -910,10 +929,9 @@ func TestRetryMechanism(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewOllamaService(server.URL, logger)
+	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(t, err)
 
-	ctx := context.Background()
 	insight, err := service.GenerateInsight(ctx, "test prompt")
 
 	assert.NoError(t, err)
@@ -924,6 +942,8 @@ func TestRetryMechanism(t *testing.T) {
 
 // TestConcurrentRequests tests concurrent access to the service
 func TestConcurrentRequests(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	// Create mock server
@@ -933,7 +953,7 @@ func TestConcurrentRequests(t *testing.T) {
 	}))
 	defer server.Close()
 
-	service, err := NewOllamaService(server.URL, logger)
+	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(t, err)
 
 	// Run multiple concurrent requests
@@ -1042,6 +1062,8 @@ func TestJSONSerialization(t *testing.T) {
 
 // BenchmarkGenerateInsight benchmarks the insight generation performance
 func BenchmarkGenerateInsight(b *testing.B) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	// Create mock server
@@ -1051,10 +1073,9 @@ func BenchmarkGenerateInsight(b *testing.B) {
 	}))
 	defer server.Close()
 
-	service, err := NewOllamaService(server.URL, logger)
+	service, err := NewOllamaService(ctx, server.URL, logger)
 	require.NoError(b, err)
 
-	ctx := context.Background()
 	prompt := "Benchmark test prompt for performance measurement"
 
 	b.ResetTimer()
@@ -1068,8 +1089,9 @@ func BenchmarkGenerateInsight(b *testing.B) {
 
 // BenchmarkBuildEnhancedPrompt benchmarks the prompt enhancement performance
 func BenchmarkBuildEnhancedPrompt(b *testing.B) {
+	ctx := context.Background()
 	logger := logging.NewTestLogger()
-	service, err := NewOllamaService("http://localhost:11434", logger)
+	service, err := NewOllamaService(ctx, "http://localhost:11434", logger)
 	require.NoError(b, err)
 
 	request := &InsightRequest{
@@ -1084,12 +1106,14 @@ func BenchmarkBuildEnhancedPrompt(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = service.buildEnhancedPrompt(request)
+		_ = service.buildEnhancedPrompt(ctx, request)
 	}
 }
 
 // TestEdgeCases tests various edge cases and error conditions
 func TestEdgeCases(t *testing.T) {
+	ctx := context.Background()
+
 	logger := logging.NewTestLogger()
 
 	t.Run("Very long prompt", func(t *testing.T) {
@@ -1102,7 +1126,7 @@ func TestEdgeCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		service, err := NewOllamaService(server.URL, logger)
+		service, err := NewOllamaService(ctx, server.URL, logger)
 		require.NoError(t, err)
 
 		ctx := context.Background()
@@ -1118,7 +1142,7 @@ func TestEdgeCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		service, err := NewOllamaService(server.URL, logger)
+		service, err := NewOllamaService(ctx, server.URL, logger)
 		require.NoError(t, err)
 
 		complexContext := map[string]any{
@@ -1147,16 +1171,17 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Malformed server response", func(t *testing.T) {
+		ctx := context.Background()
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"response": "incomplete`)) // Malformed JSON
 		}))
 		defer server.Close()
 
-		service, err := NewOllamaService(server.URL, logger)
+		service, err := NewOllamaService(ctx, server.URL, logger)
 		require.NoError(t, err)
 
-		ctx := context.Background()
 		insight, err := service.GenerateInsight(ctx, "test prompt")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to decode response")

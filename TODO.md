@@ -4,6 +4,9 @@
 
 ## High Priority Tasks
 
+- create rfcs
+- create logger for tests: many testes create their own logger, we should create a common one in testutils
+
 ### 🎯 Task 0125: Hierarchical LLM Model Configuration System
 **Priority**: HIGH
 **Estimated Effort**: 4-6 weeks

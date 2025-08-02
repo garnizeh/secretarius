@@ -22,7 +22,7 @@ func TestLogEntryHandler_CreateLogEntry(t *testing.T) {
 
 	t.Run("successful log entry creation", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -81,7 +81,7 @@ func TestLogEntryHandler_CreateLogEntry(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Prepare log entry creation request
 		logRequest := models.LogEntryRequest{
@@ -112,7 +112,7 @@ func TestLogEntryHandler_CreateLogEntry(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -135,7 +135,7 @@ func TestLogEntryHandler_CreateLogEntry(t *testing.T) {
 
 	t.Run("missing required fields", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -165,7 +165,7 @@ func TestLogEntryHandler_GetLogEntry(t *testing.T) {
 
 	t.Run("successful log entry retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -196,7 +196,7 @@ func TestLogEntryHandler_GetLogEntry(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to get log entry without authorization
 		req, _ := http.NewRequest("GET", "/v1/logs/test-id", nil)
@@ -208,7 +208,7 @@ func TestLogEntryHandler_GetLogEntry(t *testing.T) {
 
 	t.Run("log entry not found", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -230,7 +230,7 @@ func TestLogEntryHandler_GetLogEntry(t *testing.T) {
 
 	t.Run("missing log entry ID", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -253,7 +253,7 @@ func TestLogEntryHandler_GetLogEntries(t *testing.T) {
 
 	t.Run("successful log entries retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -307,7 +307,7 @@ func TestLogEntryHandler_GetLogEntries(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to get log entries without authorization
 		req, _ := http.NewRequest("GET", "/v1/logs", nil)
@@ -324,7 +324,7 @@ func TestLogEntryHandler_GetLogEntries(t *testing.T) {
 
 	t.Run("with filters", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -354,7 +354,7 @@ func TestLogEntryHandler_GetLogEntries(t *testing.T) {
 
 	t.Run("with invalid filters", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -376,7 +376,7 @@ func TestLogEntryHandler_GetLogEntries(t *testing.T) {
 
 	t.Run("with pagination", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -410,7 +410,7 @@ func TestLogEntryHandler_UpdateLogEntry(t *testing.T) {
 
 	t.Run("successful log entry update", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -461,7 +461,7 @@ func TestLogEntryHandler_UpdateLogEntry(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Prepare update request
 		updateRequest := models.LogEntryRequest{
@@ -483,7 +483,7 @@ func TestLogEntryHandler_UpdateLogEntry(t *testing.T) {
 
 	t.Run("log entry not found", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -515,7 +515,7 @@ func TestLogEntryHandler_UpdateLogEntry(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -542,7 +542,7 @@ func TestLogEntryHandler_UpdateLogEntry(t *testing.T) {
 
 	t.Run("missing log entry ID", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -575,7 +575,7 @@ func TestLogEntryHandler_DeleteLogEntry(t *testing.T) {
 
 	t.Run("successful log entry deletion", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -601,7 +601,7 @@ func TestLogEntryHandler_DeleteLogEntry(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to delete without authorization
 		req, _ := http.NewRequest("DELETE", "/v1/logs/test-id", nil)
@@ -613,7 +613,7 @@ func TestLogEntryHandler_DeleteLogEntry(t *testing.T) {
 
 	t.Run("log entry not found", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -635,7 +635,7 @@ func TestLogEntryHandler_DeleteLogEntry(t *testing.T) {
 
 	t.Run("missing log entry ID", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -658,7 +658,7 @@ func TestLogEntryHandler_BulkCreateLogEntries(t *testing.T) {
 
 	t.Run("successful bulk creation", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -725,7 +725,7 @@ func TestLogEntryHandler_BulkCreateLogEntries(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Prepare bulk creation request
 		bulkRequest := struct {
@@ -758,7 +758,7 @@ func TestLogEntryHandler_BulkCreateLogEntries(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -781,7 +781,7 @@ func TestLogEntryHandler_BulkCreateLogEntries(t *testing.T) {
 
 	t.Run("empty entries array", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -813,7 +813,7 @@ func TestLogEntryHandler_BulkCreateLogEntries(t *testing.T) {
 
 	t.Run("partial success", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)

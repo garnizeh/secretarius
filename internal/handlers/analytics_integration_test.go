@@ -22,7 +22,7 @@ func TestAnalyticsHandler_Integration_FullWorkflow(t *testing.T) {
 
 	t.Run("complete analytics workflow with real data", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -115,7 +115,7 @@ func TestAnalyticsHandler_Integration_UserIsolation(t *testing.T) {
 
 	t.Run("analytics data isolation between users", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create two different users
 		user1 := createTestUser(t, userService)
@@ -181,7 +181,7 @@ func TestAnalyticsHandler_Integration_ConcurrentAccess(t *testing.T) {
 
 	t.Run("concurrent analytics requests", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and some test data
 		user := createTestUser(t, userService)
@@ -248,7 +248,7 @@ func TestAnalyticsHandler_Integration_LargeDataSet(t *testing.T) {
 
 	t.Run("analytics with large dataset", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user
 		user := createTestUser(t, userService)
@@ -311,7 +311,7 @@ func TestAnalyticsHandler_Integration_EdgeCases(t *testing.T) {
 
 	t.Run("analytics edge cases", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user with no data
 		user := createTestUser(t, userService)

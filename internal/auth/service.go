@@ -248,7 +248,7 @@ func (a *AuthService) DenylistRefreshToken(ctx context.Context, jti, userID stri
 
 	expiresAt := time.Now().Add(a.refreshTokenTTL)
 	err = a.db.Write(ctx, func(qtx *store.Queries) error {
-		return qtx.CreateRefreshTokenDenylist(context.Background(), store.CreateRefreshTokenDenylistParams{
+		return qtx.CreateRefreshTokenDenylist(ctx, store.CreateRefreshTokenDenylistParams{
 			Jti:       jti,
 			UserID:    userUUID,
 			ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},

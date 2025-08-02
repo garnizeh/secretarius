@@ -22,7 +22,7 @@ func TestTagHandler_CreateTag(t *testing.T) {
 
 	t.Run("successful tag creation", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -67,7 +67,7 @@ func TestTagHandler_CreateTag(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -95,7 +95,7 @@ func TestTagHandler_GetTag(t *testing.T) {
 
 	t.Run("successful tag retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -125,7 +125,7 @@ func TestTagHandler_GetTag(t *testing.T) {
 
 	t.Run("tag not found", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -152,7 +152,7 @@ func TestTagHandler_GetTags(t *testing.T) {
 
 	t.Run("successful tags retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -199,7 +199,7 @@ func TestTagHandler_GetPopularTags(t *testing.T) {
 
 	t.Run("successful popular tags retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -224,7 +224,7 @@ func TestTagHandler_GetPopularTags(t *testing.T) {
 
 	t.Run("popular tags with limit parameter", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -254,7 +254,7 @@ func TestTagHandler_GetRecentlyUsedTags(t *testing.T) {
 
 	t.Run("successful recently used tags retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -285,11 +285,13 @@ func TestTagHandler_GetRecentlyUsedTags(t *testing.T) {
 
 // TestTagHandler_SearchTags tests the SearchTags functionality
 func TestTagHandler_SearchTags(t *testing.T) {
+	ctx := context.Background()
+
 	gin.SetMode(gin.TestMode)
 
 	t.Run("successful tag search", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -297,7 +299,7 @@ func TestTagHandler_SearchTags(t *testing.T) {
 
 		// Create a tag with searchable name
 		description := "Backend development tasks"
-		_, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		_, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:        "backend-development",
 			Description: &description,
 			Color:       "#3B82F6",
@@ -333,7 +335,7 @@ func TestTagHandler_SearchTags(t *testing.T) {
 
 	t.Run("search with missing query parameter", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -360,7 +362,7 @@ func TestTagHandler_UpdateTag(t *testing.T) {
 
 	t.Run("successful tag update", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -402,7 +404,7 @@ func TestTagHandler_UpdateTag(t *testing.T) {
 
 	t.Run("update non-existent tag", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -441,7 +443,7 @@ func TestTagHandler_DeleteTag(t *testing.T) {
 
 	t.Run("successful tag deletion", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -474,7 +476,7 @@ func TestTagHandler_DeleteTag(t *testing.T) {
 
 	t.Run("delete non-existent tag", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -501,7 +503,7 @@ func TestTagHandler_GetUserTagUsage(t *testing.T) {
 
 	t.Run("successful user tag usage retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -531,7 +533,7 @@ func TestTagHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("unauthorized create tag request", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Prepare tag creation request
 		description := "This should fail"
@@ -555,7 +557,7 @@ func TestTagHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("unauthorized get tag request", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		// Try to get tag without authentication
 		req, _ := http.NewRequest("GET", "/v1/tags/some-id", nil)
@@ -567,7 +569,7 @@ func TestTagHandler_ErrorHandling(t *testing.T) {
 
 	t.Run("invalid tag ID format", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)

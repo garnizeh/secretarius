@@ -30,21 +30,25 @@ func TestManager_NewManager(t *testing.T) {
 // TestManager_Start tests manager startup functionality
 func TestManager_Start(t *testing.T) {
 	t.Run("start without TLS", func(t *testing.T) {
+		ctx := context.Background()
+
 		cfg := createTestConfigForManager()
 		cfg.GRPC.TLSEnabled = false
 		logger := createTestLoggerForManager()
 
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		assert.NoError(t, err)
 
-		if stopErr := manager.Stop(); stopErr != nil {
+		if stopErr := manager.Stop(ctx); stopErr != nil {
 			t.Logf("Warning: failed to stop manager: %v", stopErr)
 		}
 	})
 
 	t.Run("start with invalid TLS configuration", func(t *testing.T) {
+		ctx := context.Background()
+
 		cfg := createTestConfigForManager()
 		cfg.GRPC.TLSEnabled = true
 		cfg.GRPC.TLSCertFile = "/non/existent/cert.pem"
@@ -53,12 +57,14 @@ func TestManager_Start(t *testing.T) {
 
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to load TLS credentials")
 	})
 
 	t.Run("start with port already in use", func(t *testing.T) {
+		ctx := context.Background()
+
 		// Garantir porta disponível antes do teste
 		port := findAvailablePort()
 		require.NotZero(t, port, "Failed to find available port")
@@ -70,7 +76,7 @@ func TestManager_Start(t *testing.T) {
 		cfg1.GRPC.ServerPort = port
 		manager1 := grpc.NewManager(cfg1, logger)
 
-		err := manager1.Start()
+		err := manager1.Start(ctx)
 		assert.NoError(t, err)
 
 		// Aguardar inicialização completa
@@ -81,30 +87,32 @@ func TestManager_Start(t *testing.T) {
 		cfg2.GRPC.ServerPort = port
 		manager2 := grpc.NewManager(cfg2, logger)
 
-		err = manager2.Start()
+		err = manager2.Start(ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to listen")
 
 		// Cleanup adequado
-		err = manager1.Stop()
+		err = manager1.Stop(ctx)
 		assert.NoError(t, err)
 
 		// Manager2 nunca iniciou com sucesso, mas Stop() deve ser seguro
 		// Não verificamos o erro do Stop() aqui porque pode retornar
 		// "connection already closed" que é esperado
-		_ = manager2.Stop()
+		_ = manager2.Stop(ctx)
 	})
 }
 
 // TestManager_Stop tests manager shutdown functionality
 func TestManager_Stop(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("stop without starting", func(t *testing.T) {
 		cfg := createTestConfigForManager()
 		logger := createTestLoggerForManager()
 
 		manager := grpc.NewManager(cfg, logger)
 
-		if stopErr := manager.Stop(); stopErr != nil {
+		if stopErr := manager.Stop(ctx); stopErr != nil {
 			t.Logf("Warning: failed to stop manager: %v", stopErr)
 		}
 	})
@@ -115,10 +123,10 @@ func TestManager_Stop(t *testing.T) {
 
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		assert.NoError(t, err)
 
-		if stopErr := manager.Stop(); stopErr != nil {
+		if stopErr := manager.Stop(ctx); stopErr != nil {
 			t.Logf("Warning: failed to stop manager: %v", stopErr)
 		}
 	})
@@ -129,16 +137,16 @@ func TestManager_Stop(t *testing.T) {
 
 		manager := grpc.NewManager(cfg, logger)
 
-		err := manager.Start()
+		err := manager.Start(ctx)
 		assert.NoError(t, err)
 
 		// First stop
-		if stopErr := manager.Stop(); stopErr != nil {
+		if stopErr := manager.Stop(ctx); stopErr != nil {
 			t.Logf("Warning: failed to stop manager: %v", stopErr)
 		}
 
 		// Second stop should not error
-		if stopErr := manager.Stop(); stopErr != nil {
+		if stopErr := manager.Stop(ctx); stopErr != nil {
 			t.Logf("Warning: failed to stop manager: %v", stopErr)
 		}
 	})
@@ -146,6 +154,8 @@ func TestManager_Stop(t *testing.T) {
 
 // TestManager_QueueInsightGenerationTask tests insight generation task queuing
 func TestManager_QueueInsightGenerationTask(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
@@ -209,6 +219,7 @@ func TestManager_QueueInsightGenerationTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			taskID, err := manager.QueueInsightGenerationTask(
+				ctx,
 				tt.userID,
 				tt.entryIDs,
 				tt.insightType,
@@ -230,6 +241,8 @@ func TestManager_QueueInsightGenerationTask(t *testing.T) {
 
 // TestManager_QueueWeeklyReportTask tests weekly report task queuing
 func TestManager_QueueWeeklyReportTask(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
@@ -279,6 +292,7 @@ func TestManager_QueueWeeklyReportTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			taskID, err := manager.QueueWeeklyReportTask(
+				ctx,
 				tt.userID,
 				tt.weekStart,
 				tt.weekEnd,
@@ -299,13 +313,15 @@ func TestManager_QueueWeeklyReportTask(t *testing.T) {
 
 // TestManager_GetTaskResult tests task result retrieval
 func TestManager_GetTaskResult(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
 	manager := grpc.NewManager(cfg, logger)
 
 	t.Run("get non-existent task result", func(t *testing.T) {
-		result, found := manager.GetTaskResult("non-existent-task")
+		result, found := manager.GetTaskResult(ctx, "non-existent-task")
 		assert.False(t, found)
 		assert.Nil(t, result)
 	})
@@ -314,7 +330,6 @@ func TestManager_GetTaskResult(t *testing.T) {
 		server := manager.GetServer()
 
 		// Report a task result
-		ctx := context.Background()
 		req := &workerpb.TaskResultRequest{
 			TaskId:      "test-task-001",
 			WorkerId:    "worker-001",
@@ -328,7 +343,7 @@ func TestManager_GetTaskResult(t *testing.T) {
 		require.NoError(t, err)
 
 		// Retrieve the result
-		result, found := manager.GetTaskResult("test-task-001")
+		result, found := manager.GetTaskResult(ctx, "test-task-001")
 		assert.True(t, found)
 		assert.NotNil(t, result)
 		assert.Equal(t, "test-task-001", result.TaskID)
@@ -339,19 +354,20 @@ func TestManager_GetTaskResult(t *testing.T) {
 
 // TestManager_GetActiveWorkers tests active workers retrieval
 func TestManager_GetActiveWorkers(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
 	manager := grpc.NewManager(cfg, logger)
 
 	t.Run("no active workers", func(t *testing.T) {
-		workers := manager.GetActiveWorkers()
+		workers := manager.GetActiveWorkers(ctx)
 		assert.Empty(t, workers)
 	})
 
 	t.Run("with registered workers", func(t *testing.T) {
-		server := manager.GetServer()
 		ctx := context.Background()
+		server := manager.GetServer()
 
 		// Register workers
 		workerIDs := []string{"worker-001", "worker-002", "worker-003"}
@@ -369,7 +385,7 @@ func TestManager_GetActiveWorkers(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		workers := manager.GetActiveWorkers()
+		workers := manager.GetActiveWorkers(ctx)
 		assert.Len(t, workers, 3)
 
 		for _, workerID := range workerIDs {
@@ -380,33 +396,33 @@ func TestManager_GetActiveWorkers(t *testing.T) {
 
 // TestManager_HealthCheck tests health check functionality
 func TestManager_HealthCheck(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
 	manager := grpc.NewManager(cfg, logger)
 
 	t.Run("health check without starting server", func(t *testing.T) {
-		ctx := context.Background()
 		err := manager.HealthCheck(ctx)
 		assert.NoError(t, err)
 	})
 
 	t.Run("health check with running server", func(t *testing.T) {
-		err := manager.Start()
+		err := manager.Start(ctx)
 		require.NoError(t, err)
 		defer func() {
-			if stopErr := manager.Stop(); stopErr != nil {
+			if stopErr := manager.Stop(ctx); stopErr != nil {
 				t.Logf("Warning: failed to stop manager: %v", stopErr)
 			}
 		}()
 
-		ctx := context.Background()
 		err = manager.HealthCheck(ctx)
 		assert.NoError(t, err)
 	})
 
 	t.Run("health check with context timeout", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+		ctx, cancel := context.WithTimeout(ctx, 1*time.Millisecond)
 		defer cancel()
 
 		// Wait for context to timeout
@@ -421,6 +437,8 @@ func TestManager_HealthCheck(t *testing.T) {
 
 // TestManager_TaskQueueIntegration tests full task queue integration
 func TestManager_TaskQueueIntegration(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
@@ -429,6 +447,7 @@ func TestManager_TaskQueueIntegration(t *testing.T) {
 	t.Run("queue multiple task types", func(t *testing.T) {
 		// Queue insight generation task
 		insightTaskID, err := manager.QueueInsightGenerationTask(
+			ctx,
 			"user-123",
 			[]string{"entry-1", "entry-2"},
 			"productivity",
@@ -439,6 +458,7 @@ func TestManager_TaskQueueIntegration(t *testing.T) {
 
 		// Queue weekly report task
 		reportTaskID, err := manager.QueueWeeklyReportTask(
+			ctx,
 			"user-123",
 			time.Now().AddDate(0, 0, -7),
 			time.Now(),
@@ -451,11 +471,13 @@ func TestManager_TaskQueueIntegration(t *testing.T) {
 	})
 
 	t.Run("queue tasks and retrieve results", func(t *testing.T) {
-		server := manager.GetServer()
 		ctx := context.Background()
+
+		server := manager.GetServer()
 
 		// Queue a task
 		taskID, err := manager.QueueInsightGenerationTask(
+			ctx,
 			"user-456",
 			[]string{"entry-1"},
 			"patterns",
@@ -477,7 +499,7 @@ func TestManager_TaskQueueIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Retrieve result through manager
-		result, found := manager.GetTaskResult(taskID)
+		result, found := manager.GetTaskResult(ctx, taskID)
 		assert.True(t, found)
 		assert.NotNil(t, result)
 		assert.Equal(t, taskID, result.TaskID)
@@ -487,6 +509,8 @@ func TestManager_TaskQueueIntegration(t *testing.T) {
 
 // TestManager_ConcurrentOperations tests concurrent manager operations
 func TestManager_ConcurrentOperations(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := createTestConfigForManager()
 	logger := createTestLoggerForManager()
 
@@ -507,6 +531,7 @@ func TestManager_ConcurrentOperations(t *testing.T) {
 					entryIDs := []string{fmt.Sprintf("entry-%d-%d", goroutineID, j)}
 
 					taskID, err := manager.QueueInsightGenerationTask(
+						ctx,
 						userID,
 						entryIDs,
 						"productivity",

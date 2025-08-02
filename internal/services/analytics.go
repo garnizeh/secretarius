@@ -495,7 +495,7 @@ func (s *AnalyticsService) validateDateRange(startDate, endDate time.Time) error
 }
 
 // validateUserID validates that the user ID is a valid UUID
-func (s *AnalyticsService) validateUserID(userID string) error {
+func (s *AnalyticsService) validateUserID(ctx context.Context, userID string) error {
 	if userID == "" {
 		s.logger.Warn("Empty user ID provided")
 		return fmt.Errorf("invalid user ID: cannot be empty")
@@ -503,7 +503,7 @@ func (s *AnalyticsService) validateUserID(userID string) error {
 
 	_, err := uuid.Parse(userID)
 	if err != nil {
-		s.logger.LogError(context.Background(), err, "Invalid user ID format", "user_id", userID)
+		s.logger.LogError(ctx, err, "Invalid user ID format", "user_id", userID)
 		return fmt.Errorf("invalid user ID: %w", err)
 	}
 

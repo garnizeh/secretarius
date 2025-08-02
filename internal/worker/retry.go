@@ -3,12 +3,12 @@ package worker
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/garnizeh/englog/internal/logging"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -81,7 +81,7 @@ func (rc *RetryConfig) CalculateDelay(attempt int) time.Duration {
 }
 
 // RetryOperation executes an operation with retry logic
-func RetryOperation(ctx context.Context, operation string, config *RetryConfig, fn func() error) error {
+func RetryOperation(ctx context.Context, logger *logging.Logger, operation string, config *RetryConfig, fn func() error) error {
 	var lastError error
 
 	for attempt := 1; attempt <= config.MaxAttempts; attempt++ {
@@ -94,8 +94,8 @@ func RetryOperation(ctx context.Context, operation string, config *RetryConfig, 
 		err := fn()
 		if err == nil {
 			if attempt > 1 {
-				slog.Info("Operation succeeded after retry",
-					"operation", operation,
+				logger.LogInfo(ctx, "Operation succeeded after retry",
+					logging.OperationField, operation,
 					"attempt", attempt,
 					"total_attempts", config.MaxAttempts)
 			}
@@ -105,28 +105,26 @@ func RetryOperation(ctx context.Context, operation string, config *RetryConfig, 
 		lastError = err
 
 		if !config.IsRetriableError(err) {
-			slog.Error("Operation failed with non-retriable error",
-				"operation", operation,
-				"attempt", attempt,
-				"error", err)
+			logger.LogError(ctx, err, "Operation failed with non-retriable error",
+				logging.OperationField, operation,
+				"attempt", attempt)
 			return fmt.Errorf("operation %s failed (non-retriable): %w", operation, err)
 		}
 
 		if attempt == config.MaxAttempts {
-			slog.Error("Operation failed after all retry attempts",
-				"operation", operation,
-				"attempts", config.MaxAttempts,
-				"error", err)
+			logger.LogError(ctx, err, "Operation failed after all retry attempts",
+				logging.OperationField, operation,
+				"attempts", config.MaxAttempts)
 			break
 		}
 
 		delay := config.CalculateDelay(attempt)
-		slog.Warn("Operation failed, retrying",
-			"operation", operation,
+		logger.LogWarn(ctx, "Operation failed, retrying",
+			logging.OperationField, operation,
 			"attempt", attempt,
 			"max_attempts", config.MaxAttempts,
 			"delay", delay,
-			"error", err)
+			logging.ErrorField, err)
 
 		select {
 		case <-ctx.Done():
@@ -150,6 +148,7 @@ const (
 
 // CircuitBreaker implements circuit breaker pattern for fault tolerance
 type CircuitBreaker struct {
+	logger               *logging.Logger
 	name                 string
 	failureThreshold     int
 	successThreshold     int
@@ -162,8 +161,9 @@ type CircuitBreaker struct {
 }
 
 // NewCircuitBreaker creates a new circuit breaker
-func NewCircuitBreaker(name string, failureThreshold, successThreshold int, timeout time.Duration) *CircuitBreaker {
+func NewCircuitBreaker(logger *logging.Logger, name string, failureThreshold, successThreshold int, timeout time.Duration) *CircuitBreaker {
 	return &CircuitBreaker{
+		logger:           logger,
 		name:             name,
 		failureThreshold: failureThreshold,
 		successThreshold: successThreshold,
@@ -183,7 +183,8 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 		if time.Since(cb.lastFailureTime) >= cb.timeout {
 			cb.state = CircuitBreakerHalfOpen
 			cb.consecutiveSuccesses = 0
-			slog.Info("Circuit breaker transitioning to half-open",
+			cb.logger.LogInfo(ctx, "Circuit breaker transitioning to half-open",
+				logging.OperationField, "circuit_breaker_transition",
 				"name", cb.name,
 				"timeout_elapsed", time.Since(cb.lastFailureTime))
 		} else {
@@ -195,15 +196,15 @@ func (cb *CircuitBreaker) Execute(ctx context.Context, fn func() error) error {
 	err := fn()
 
 	if err != nil {
-		cb.onFailure()
+		cb.onFailure(ctx)
 		return err
 	}
 
-	cb.onSuccess()
+	cb.onSuccess(ctx)
 	return nil
 }
 
-func (cb *CircuitBreaker) onSuccess() {
+func (cb *CircuitBreaker) onSuccess(ctx context.Context) {
 	switch cb.state {
 	case CircuitBreakerClosed:
 		cb.consecutiveFailures = 0
@@ -212,14 +213,15 @@ func (cb *CircuitBreaker) onSuccess() {
 		if cb.consecutiveSuccesses >= cb.successThreshold {
 			cb.state = CircuitBreakerClosed
 			cb.consecutiveFailures = 0
-			slog.Info("Circuit breaker closed after successful recovery",
+			cb.logger.LogInfo(ctx, "Circuit breaker closed after successful recovery",
+				logging.OperationField, "circuit_breaker_recovery",
 				"name", cb.name,
 				"consecutive_successes", cb.consecutiveSuccesses)
 		}
 	}
 }
 
-func (cb *CircuitBreaker) onFailure() {
+func (cb *CircuitBreaker) onFailure(ctx context.Context) {
 	cb.lastFailureTime = time.Now()
 
 	switch cb.state {
@@ -227,7 +229,8 @@ func (cb *CircuitBreaker) onFailure() {
 		cb.consecutiveFailures++
 		if cb.consecutiveFailures >= cb.failureThreshold {
 			cb.state = CircuitBreakerOpen
-			slog.Warn("Circuit breaker opened due to consecutive failures",
+			cb.logger.LogWarn(ctx, "Circuit breaker opened due to consecutive failures",
+				logging.OperationField, "circuit_breaker_failure",
 				"name", cb.name,
 				"consecutive_failures", cb.consecutiveFailures,
 				"threshold", cb.failureThreshold)
@@ -235,7 +238,8 @@ func (cb *CircuitBreaker) onFailure() {
 	case CircuitBreakerHalfOpen:
 		cb.state = CircuitBreakerOpen
 		cb.consecutiveSuccesses = 0
-		slog.Warn("Circuit breaker opened from half-open state",
+		cb.logger.LogWarn(ctx, "Circuit breaker opened from half-open state",
+			logging.OperationField, "circuit_breaker_failure",
 			"name", cb.name)
 	}
 }

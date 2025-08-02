@@ -82,7 +82,7 @@ func TestAnalyticsHandler_GetProductivityMetrics_Comprehensive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+			router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 			token := tt.setupData(router, userService, projectService, logEntryService)
 
 			// Make request
@@ -173,7 +173,7 @@ func TestAnalyticsHandler_GetActivitySummary_Comprehensive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+			router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 			token := tt.setupData(router, userService, projectService, logEntryService)
 
 			// Make request
@@ -238,7 +238,7 @@ func TestAnalyticsHandler_DateParsing_Comprehensive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 			user := createTestUser(t, userService)
 			token := loginUser(t, router, user.Email, "password123")
 

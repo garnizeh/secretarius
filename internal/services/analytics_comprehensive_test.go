@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -93,6 +94,8 @@ func TestAnalyticsService_ComprehensiveValidation(t *testing.T) {
 	})
 
 	t.Run("UserIDValidationEdgeCases", func(t *testing.T) {
+		ctx := context.Background()
+		
 		tests := []struct {
 			name    string
 			userID  string
@@ -147,7 +150,7 @@ func TestAnalyticsService_ComprehensiveValidation(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				err := analyticsService.validateUserID(tt.userID)
+				err := analyticsService.validateUserID(ctx, tt.userID)
 				if tt.wantErr {
 					assert.Error(t, err)
 					if err != nil && tt.errMsg != "" {

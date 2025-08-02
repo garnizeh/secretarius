@@ -21,14 +21,16 @@ import (
 
 // TestTagHandler_Integration_FullWorkflow tests complete tag management workflow
 func TestTagHandler_Integration_FullWorkflow(t *testing.T) {
+	ctx := context.Background()
+
 	gin.SetMode(gin.TestMode)
 
 	t.Run("complete tag lifecycle workflow", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("tagtest-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Tag",
@@ -181,10 +183,10 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("tag usage in log entries affects popular tags", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("crosssystem-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Cross",
@@ -196,7 +198,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 		token := loginUser(t, router, user.Email, "password123")
 
 		// Create a project
-		project, err := projectService.CreateProject(context.Background(), user.ID.String(), &models.ProjectRequest{
+		project, err := projectService.CreateProject(ctx, user.ID.String(), &models.ProjectRequest{
 			Name:        fmt.Sprintf("Test Project %d", time.Now().UnixNano()),
 			Description: stringPtr("A test project"),
 			Color:       "#FF5733",
@@ -206,13 +208,13 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create tags
-		tag1, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag1, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("popular-tag-1-%d", time.Now().UnixNano()),
 			Color: "#FF0000",
 		})
 		require.NoError(t, err)
 
-		tag2, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag2, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("popular-tag-2-%d", time.Now().UnixNano()),
 			Color: "#00FF00",
 		})
@@ -220,7 +222,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 		// Create log entries using these tags to make them popular
 		for i := 0; i < 5; i++ {
-			_, err := logEntryService.CreateLogEntry(context.Background(), user.ID.String(), &models.LogEntryRequest{
+			_, err := logEntryService.CreateLogEntry(ctx, user.ID.String(), &models.LogEntryRequest{
 				Title:       fmt.Sprintf("Log entry %d", i),
 				Description: stringPtr("Test log entry"),
 				Type:        models.ActivityDevelopment,
@@ -261,10 +263,10 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("recently used tags reflect user activity", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("recenttags-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Recent",
@@ -276,7 +278,7 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 		token := loginUser(t, router, user.Email, "password123")
 
 		// Create a project
-		project, err := projectService.CreateProject(context.Background(), user.ID.String(), &models.ProjectRequest{
+		project, err := projectService.CreateProject(ctx, user.ID.String(), &models.ProjectRequest{
 			Name:        fmt.Sprintf("Recent Project %d", time.Now().UnixNano()),
 			Description: stringPtr("A test project for recent tags"),
 			Color:       "#FF5733",
@@ -286,14 +288,14 @@ func TestTagHandler_Integration_CrossSystemBehavior(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a tag
-		tag, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("recent-tag-%d", time.Now().UnixNano()),
 			Color: "#FF0000",
 		})
 		require.NoError(t, err)
 
 		// Use the tag in a log entry
-		logEntry, err := logEntryService.CreateLogEntry(context.Background(), user.ID.String(), &models.LogEntryRequest{
+		logEntry, err := logEntryService.CreateLogEntry(ctx, user.ID.String(), &models.LogEntryRequest{
 			Title:       "Recent tag test",
 			Description: stringPtr("Testing recent tag functionality"),
 			Type:        models.ActivityDevelopment,
@@ -375,10 +377,10 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("unauthorized access prevention", func(t *testing.T) {
 		// Setup integration test environment
-		router, _, _, _, tagService := setupTestRouterWithServices(t)
+		router, _, _, _, tagService := RouterWithServices(t)
 
 		// Create a tag directly via service (without going through API)
-		tag, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("security-tag-%d", time.Now().UnixNano()),
 			Color: "#FF0000",
 		})
@@ -420,10 +422,10 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("user isolation for recently used tags", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, projectService, logEntryService, tagService := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, tagService := RouterWithServices(t)
 
 		// Create two users
-		user1, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user1, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("user1-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "User",
@@ -432,7 +434,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		user2, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user2, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("user2-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "User",
@@ -445,7 +447,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 		token2 := loginUser(t, router, user2.Email, "password123")
 
 		// Create projects for both users
-		project1, err := projectService.CreateProject(context.Background(), user1.ID.String(), &models.ProjectRequest{
+		project1, err := projectService.CreateProject(ctx, user1.ID.String(), &models.ProjectRequest{
 			Name:        fmt.Sprintf("User1 Project %d", time.Now().UnixNano()),
 			Description: stringPtr("User 1's project"),
 			Color:       "#FF5733",
@@ -454,7 +456,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		project2, err := projectService.CreateProject(context.Background(), user2.ID.String(), &models.ProjectRequest{
+		project2, err := projectService.CreateProject(ctx, user2.ID.String(), &models.ProjectRequest{
 			Name:        fmt.Sprintf("User2 Project %d", time.Now().UnixNano()),
 			Description: stringPtr("User 2's project"),
 			Color:       "#33FF57",
@@ -464,20 +466,20 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create tags
-		tag1, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag1, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("user1-tag-%d", time.Now().UnixNano()),
 			Color: "#FF0000",
 		})
 		require.NoError(t, err)
 
-		tag2, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		tag2, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("user2-tag-%d", time.Now().UnixNano()),
 			Color: "#00FF00",
 		})
 		require.NoError(t, err)
 
 		// User 1 uses tag1
-		_, err = logEntryService.CreateLogEntry(context.Background(), user1.ID.String(), &models.LogEntryRequest{
+		_, err = logEntryService.CreateLogEntry(ctx, user1.ID.String(), &models.LogEntryRequest{
 			Title:       "User 1 log entry",
 			Description: stringPtr("User 1's log entry"),
 			Type:        models.ActivityDevelopment,
@@ -491,7 +493,7 @@ func TestTagHandler_Integration_SecurityBehavior(t *testing.T) {
 		require.NoError(t, err)
 
 		// User 2 uses tag2
-		_, err = logEntryService.CreateLogEntry(context.Background(), user2.ID.String(), &models.LogEntryRequest{
+		_, err = logEntryService.CreateLogEntry(ctx, user2.ID.String(), &models.LogEntryRequest{
 			Title:       "User 2 log entry",
 			Description: stringPtr("User 2's log entry"),
 			Type:        models.ActivityDevelopment,
@@ -583,10 +585,10 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("bulk tag operations performance", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("performance-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Performance",
@@ -654,10 +656,10 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("concurrent tag creation resilience", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("concurrent-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Concurrent",
@@ -706,10 +708,10 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("tag search consistency under load", func(t *testing.T) {
 		// Setup integration test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create and login user
-		user, err := userService.CreateUser(context.Background(), &models.UserRegistration{
+		user, err := userService.CreateUser(ctx, &models.UserRegistration{
 			Email:     fmt.Sprintf("searchload-%d@example.com", time.Now().UnixNano()),
 			Password:  "password123",
 			FirstName: "Search",
@@ -721,7 +723,7 @@ func TestTagHandler_Integration_PerformanceAndReliability(t *testing.T) {
 		token := loginUser(t, router, user.Email, "password123")
 
 		// Create a tag with searchable name
-		searchableTag, err := tagService.CreateTag(context.Background(), &models.TagRequest{
+		searchableTag, err := tagService.CreateTag(ctx, &models.TagRequest{
 			Name:  fmt.Sprintf("searchable-consistency-tag-%d", time.Now().UnixNano()),
 			Color: "#FF0000",
 		})

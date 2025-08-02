@@ -23,7 +23,7 @@ func TestUserHandler_Integration_FullWorkflow(t *testing.T) {
 
 	t.Run("complete_user_lifecycle_workflow", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -163,7 +163,7 @@ func TestUserHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("user_profile_updates_affect_system_data", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -216,7 +216,7 @@ func TestUserHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("user_account_deletion_affects_related_data", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -273,7 +273,7 @@ func TestUserHandler_Integration_CrossSystemBehavior(t *testing.T) {
 
 	t.Run("user_timezone_changes_affect_timestamps", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -329,7 +329,7 @@ func TestUserHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("token_behavior_after_password_change", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -380,7 +380,7 @@ func TestUserHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("concurrent_user_operations", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -477,7 +477,7 @@ func TestUserHandler_Integration_SecurityBehavior(t *testing.T) {
 
 	t.Run("password_change_with_bcrypt_limits", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -538,7 +538,7 @@ func TestUserHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("bulk_user_operations_performance", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -574,7 +574,7 @@ func TestUserHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("profile_update_resilience", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -631,7 +631,7 @@ func TestUserHandler_Integration_PerformanceAndReliability(t *testing.T) {
 
 	t.Run("user_data_consistency_under_load", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, logEntryService, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, logEntryService, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)

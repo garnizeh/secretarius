@@ -123,7 +123,7 @@ func TestTagHandler_Comprehensive_CreateTag(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 
 			// Create user and login
 			user := createTestUser(t, userService)
@@ -166,7 +166,7 @@ func TestTagHandler_Comprehensive_TagDuplication(t *testing.T) {
 
 	t.Run("duplicate tag name should fail", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -202,7 +202,7 @@ func TestTagHandler_Comprehensive_TagDuplication(t *testing.T) {
 
 	t.Run("case insensitive tag name should fail", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -250,7 +250,7 @@ func TestTagHandler_Comprehensive_GetTags(t *testing.T) {
 
 	t.Run("get all tags with multiple tags", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -285,7 +285,7 @@ func TestTagHandler_Comprehensive_GetTags(t *testing.T) {
 
 	t.Run("get tags with seeded database", func(t *testing.T) {
 		// Setup test environment (database with seeded data)
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -399,7 +399,7 @@ func TestTagHandler_Comprehensive_TagSearch(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 
 			// Create user and login
 			user := createTestUser(t, userService)
@@ -522,7 +522,7 @@ func TestTagHandler_Comprehensive_UpdateTag(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, tagService := setupTestRouterWithServices(t)
+			router, userService, _, _, tagService := RouterWithServices(t)
 
 			// Create user and login
 			user := createTestUser(t, userService)
@@ -575,7 +575,7 @@ func TestTagHandler_Comprehensive_DeleteTag(t *testing.T) {
 
 	t.Run("delete existing tag", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, tagService := setupTestRouterWithServices(t)
+		router, userService, _, _, tagService := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -610,7 +610,7 @@ func TestTagHandler_Comprehensive_DeleteTag(t *testing.T) {
 
 	t.Run("delete non-existent tag", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -635,7 +635,7 @@ func TestTagHandler_Comprehensive_DeleteTag(t *testing.T) {
 
 	t.Run("delete with invalid tag ID", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create user and login
 		user := createTestUser(t, userService)
@@ -714,7 +714,7 @@ func TestTagHandler_Comprehensive_PopularTags(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup test environment
-			router, userService, _, _, _ := setupTestRouterWithServices(t)
+			router, userService, _, _, _ := RouterWithServices(t)
 
 			// Create user and login
 			user := createTestUser(t, userService)
@@ -776,7 +776,7 @@ func TestTagHandler_Comprehensive_AuthenticationRequired(t *testing.T) {
 	for _, endpoint := range endpoints {
 		t.Run(fmt.Sprintf("%s %s without authentication", endpoint.method, endpoint.path), func(t *testing.T) {
 			// Setup test environment
-			router, _, _, _, _ := setupTestRouterWithServices(t)
+			router, _, _, _, _ := RouterWithServices(t)
 
 			var req *http.Request
 			if endpoint.method == http.MethodPost || endpoint.method == http.MethodPut {
@@ -796,7 +796,7 @@ func TestTagHandler_Comprehensive_AuthenticationRequired(t *testing.T) {
 
 		t.Run(fmt.Sprintf("%s %s with invalid token", endpoint.method, endpoint.path), func(t *testing.T) {
 			// Setup test environment
-			router, _, _, _, _ := setupTestRouterWithServices(t)
+			router, _, _, _, _ := RouterWithServices(t)
 
 			var req *http.Request
 			if endpoint.method == http.MethodPost || endpoint.method == http.MethodPut {

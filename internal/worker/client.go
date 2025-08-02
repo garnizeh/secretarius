@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"runtime"
 	"sync"
 	"time"
@@ -72,23 +71,26 @@ type WorkerStats struct {
 }
 
 // NewClient creates a new worker client with enhanced error handling
-func NewClient(logger *logging.Logger, connectionManager *ConnectionManager, aiService *ai.OllamaService, cfg *config.Config) *Client {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewClient(ctx context.Context, logger *logging.Logger, connectionManager *ConnectionManager, aiService *ai.OllamaService, cfg *config.Config) *Client {
+	ctx, cancel := context.WithCancel(ctx)
 
 	maxTasks := cfg.Worker.MaxConcurrentTasks
 	if maxTasks <= 0 {
 		maxTasks = 5 // Default fallback
 	}
 
-	logger.Info("Creating new worker client",
-		"component", "worker_client",
+	// Configure logger with worker client component
+	clientLogger := logger.WithServiceAndComponent("worker", "client")
+
+	clientLogger.LogInfo(ctx, "Creating new worker client",
+		logging.OperationField, "create_worker_client",
 		"worker_id", cfg.Worker.WorkerID,
 		"worker_name", cfg.Worker.WorkerName,
 		"max_concurrent_tasks", maxTasks,
 		"environment", cfg.Environment)
 
 	return &Client{
-		logger:            logger,
+		logger:            clientLogger,
 		connectionManager: connectionManager,
 		aiService:         aiService,
 		config:            cfg,
@@ -100,8 +102,8 @@ func NewClient(logger *logging.Logger, connectionManager *ConnectionManager, aiS
 			activeTasks: make(map[string]*ActiveTask),
 		},
 		retryConfig:           DefaultRetryConfig(),
-		registrationBreaker:   NewCircuitBreaker("worker_registration", 3, 2, 60*time.Second),
-		taskProcessingBreaker: NewCircuitBreaker("task_processing", 5, 3, 30*time.Second),
+		registrationBreaker:   NewCircuitBreaker(clientLogger, "worker_registration", 3, 2, 60*time.Second),
+		taskProcessingBreaker: NewCircuitBreaker(clientLogger, "task_processing", 5, 3, 30*time.Second),
 		taskSemaphore:         make(chan struct{}, maxTasks),
 		ctx:                   ctx,
 		cancel:                cancel,
@@ -111,28 +113,31 @@ func NewClient(logger *logging.Logger, connectionManager *ConnectionManager, aiS
 
 // Start initializes the worker client and begins task processing with resilience
 func (c *Client) Start(ctx context.Context) error {
-	c.logger.Info("Starting worker client with enhanced error handling",
+	c.logger.LogInfo(ctx, "Starting worker client with enhanced error handling",
+		logging.OperationField, "start_worker_client",
 		"max_concurrent_tasks", cap(c.taskSemaphore),
 		"shutdown_timeout", c.shutdownTimeout)
 
 	// Connect to the server
 	if err := c.connectionManager.Connect(ctx); err != nil {
-		c.logger.Error("Failed to establish initial connection",
-			"error", err,
+		c.logger.LogError(ctx, err, "Failed to establish initial connection",
+			logging.OperationField, "initial_connection",
 			"target", c.connectionManager.target)
 		return fmt.Errorf("failed to establish initial connection: %w", err)
 	}
 
-	c.logger.Info("Initial gRPC connection established successfully")
+	c.logger.LogInfo(ctx, "Initial gRPC connection established successfully",
+		logging.OperationField, "initial_connection")
 
 	// Register with API server using retry logic
 	if err := c.registerWorkerWithRetry(ctx); err != nil {
-		c.logger.Error("Failed to register worker after retries",
-			"error", err)
+		c.logger.LogError(ctx, err, "Failed to register worker after retries",
+			logging.OperationField, "worker_registration")
 		return fmt.Errorf("failed to register worker: %w", err)
 	}
 
-	c.logger.Info("Worker registration completed successfully")
+	c.logger.LogInfo(ctx, "Worker registration completed successfully",
+		logging.OperationField, "worker_registration")
 
 	// Start background processes
 	var wg sync.WaitGroup
@@ -141,50 +146,60 @@ func (c *Client) Start(ctx context.Context) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		c.logger.Debug("Starting connection health monitoring routine")
+		c.logger.LogDebug(ctx, "Starting connection health monitoring routine",
+			logging.OperationField, "start_health_monitoring")
 		c.connectionHealthRoutine(ctx)
-		c.logger.Debug("Connection health monitoring routine stopped")
+		c.logger.LogDebug(ctx, "Connection health monitoring routine stopped",
+			logging.OperationField, "stop_health_monitoring")
 	}()
 
 	// Heartbeat routine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		c.logger.Debug("Starting heartbeat routine")
+		c.logger.LogDebug(ctx, "Starting heartbeat routine",
+			logging.OperationField, "start_heartbeat")
 		c.heartbeatRoutine(ctx)
-		c.logger.Debug("Heartbeat routine stopped")
+		c.logger.LogDebug(ctx, "Heartbeat routine stopped",
+			logging.OperationField, "stop_heartbeat")
 	}()
 
 	// Task streaming routine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		c.logger.Debug("Starting task streaming routine")
+		c.logger.LogDebug(ctx, "Starting task streaming routine",
+			logging.OperationField, "start_task_streaming")
 		c.taskStreamingRoutine(ctx)
-		c.logger.Debug("Task streaming routine stopped")
+		c.logger.LogDebug(ctx, "Task streaming routine stopped",
+			logging.OperationField, "stop_task_streaming")
 	}()
 
 	// Statistics reporting routine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		c.logger.Debug("Starting statistics reporting routine")
+		c.logger.LogDebug(ctx, "Starting statistics reporting routine",
+			logging.OperationField, "start_statistics")
 		c.statisticsRoutine(ctx)
-		c.logger.Debug("Statistics reporting routine stopped")
+		c.logger.LogDebug(ctx, "Statistics reporting routine stopped",
+			logging.OperationField, "stop_statistics")
 	}()
 
-	c.logger.Info("All background routines started successfully")
+	c.logger.LogInfo(ctx, "All background routines started successfully",
+		logging.OperationField, "start_background_routines")
 
 	// Wait for context cancellation
 	<-ctx.Done()
 
-	c.logger.Info("Worker client shutting down...",
+	c.logger.LogInfo(ctx, "Worker client shutting down...",
+		logging.OperationField, "shutdown_start",
 		"shutdown_timeout", c.shutdownTimeout,
-		"reason", ctx.Err())
+		logging.ReasonField, ctx.Err())
 	c.cancel()
 
 	// Graceful shutdown with timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), c.shutdownTimeout)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, c.shutdownTimeout)
 	defer shutdownCancel()
 
 	// Wait for goroutines to finish or timeout
@@ -196,16 +211,20 @@ func (c *Client) Start(ctx context.Context) error {
 
 	select {
 	case <-done:
-		c.logger.Info("Worker client stopped gracefully")
+		c.logger.LogInfo(ctx, "Worker client stopped gracefully",
+			logging.OperationField, "shutdown_complete")
 	case <-shutdownCtx.Done():
-		c.logger.Warn("Worker client shutdown timeout reached")
+		c.logger.LogWarn(ctx, "Worker client shutdown timeout reached",
+			logging.OperationField, "shutdown_timeout")
 	}
 
 	// Close connection manager
-	if err := c.connectionManager.Close(); err != nil {
-		c.logger.Error("Failed to close connection manager", "error", err)
+	if err := c.connectionManager.Close(ctx); err != nil {
+		c.logger.LogError(ctx, err, "Failed to close connection manager",
+			logging.OperationField, "close_connection_manager")
 	} else {
-		c.logger.Info("Connection manager closed successfully")
+		c.logger.LogInfo(ctx, "Connection manager closed successfully",
+			logging.OperationField, "close_connection_manager")
 	}
 
 	return nil
@@ -215,10 +234,11 @@ func (c *Client) registerWorkerWithRetry(ctx context.Context) error {
 	c.registrationMu.Lock()
 	defer c.registrationMu.Unlock()
 
-	c.logger.Info("Starting worker registration process")
+	c.logger.LogInfo(ctx, "Starting worker registration process",
+		logging.OperationField, "register_worker_with_retry")
 
 	return c.registrationBreaker.Execute(ctx, func() error {
-		return RetryOperation(ctx, "worker_registration", c.retryConfig, func() error {
+		return RetryOperation(ctx, c.logger, "worker_registration", c.retryConfig, func() error {
 			return c.doRegisterWorker(ctx)
 		})
 	})
@@ -240,7 +260,8 @@ func (c *Client) doRegisterWorker(ctx context.Context) error {
 		},
 	}
 
-	c.logger.Debug("Sending worker registration request",
+	c.logger.LogDebug(ctx, "Sending worker registration request",
+		logging.OperationField, "do_register_worker",
 		"capabilities", req.Capabilities,
 		"version", req.Version,
 		"metadata", req.Metadata)
@@ -248,12 +269,16 @@ func (c *Client) doRegisterWorker(ctx context.Context) error {
 	return c.connectionManager.ExecuteWithRetry(ctx, "register_worker", func(client workerpb.APIWorkerServiceClient) error {
 		resp, err := client.RegisterWorker(ctx, req)
 		if err != nil {
-			c.logger.Warn("Worker registration request failed", "error", err)
+			c.logger.LogWarn(ctx, "Worker registration request failed",
+				logging.OperationField, "do_register_worker",
+				logging.ErrorField, err)
 			return fmt.Errorf("registration request failed: %w", err)
 		}
 
 		if !resp.RegistrationSuccessful {
-			c.logger.Error("Worker registration rejected by server",
+			c.logger.LogError(ctx, fmt.Errorf("worker registration rejected: %s", resp.Message),
+				"Worker registration rejected by server",
+				logging.OperationField, "do_register_worker",
 				"message", resp.Message)
 			return fmt.Errorf("worker registration failed: %s", resp.Message)
 		}
@@ -261,7 +286,8 @@ func (c *Client) doRegisterWorker(ctx context.Context) error {
 		c.sessionToken = resp.SessionToken
 		c.setConnected(true)
 
-		c.logger.Info("Worker registered successfully",
+		c.logger.LogInfo(ctx, "Worker registered successfully",
+			logging.OperationField, "do_register_worker",
 			"session_token_length", len(c.sessionToken),
 			"heartbeat_interval", resp.HeartbeatIntervalSeconds)
 		return nil
@@ -272,39 +298,46 @@ func (c *Client) connectionHealthRoutine(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	c.logger.Debug("Connection health monitoring started",
+	c.logger.LogDebug(ctx, "Connection health monitoring started",
+		logging.OperationField, "connection_health_routine",
 		"check_interval", "10s")
 
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Debug("Connection health monitoring stopping due to context cancellation")
+			c.logger.LogDebug(ctx, "Connection health monitoring stopping due to context cancellation",
+				logging.OperationField, "connection_health_routine")
 			return
 		case <-ticker.C:
-			if !c.connectionManager.IsConnected() {
-				c.logger.Warn("Connection manager reports disconnected state",
-					"connection_state", c.connectionManager.GetConnectionState())
+			if !c.connectionManager.IsConnected(ctx) {
+				c.logger.LogWarn(ctx, "Connection manager reports disconnected state",
+					logging.OperationField, "connection_health_routine",
+					"connection_state", c.connectionManager.GetConnectionState(ctx))
 				c.setConnected(false)
 
 				// Attempt reconnection
-				c.logger.Info("Attempting to reconnect to API server")
+				c.logger.LogInfo(ctx, "Attempting to reconnect to API server",
+					logging.OperationField, "connection_health_routine")
 				if err := c.connectionManager.Reconnect(ctx); err != nil {
-					c.logger.Error("Failed to reconnect",
-						"error", err,
+					c.logger.LogError(ctx, err, "Failed to reconnect",
+						logging.OperationField, "connection_health_routine",
 						"will_retry_next_cycle", true)
 					continue
 				}
 
-				c.logger.Info("Reconnection successful, re-registering worker")
+				c.logger.LogInfo(ctx, "Reconnection successful, re-registering worker",
+					logging.OperationField, "connection_health_routine")
 				// Re-register after successful reconnection
 				if err := c.registerWorkerWithRetry(ctx); err != nil {
-					c.logger.Error("Failed to re-register after reconnection",
-						"error", err)
+					c.logger.LogError(ctx, err, "Failed to re-register after reconnection",
+						logging.OperationField, "connection_health_routine")
 				} else {
-					c.logger.Info("Worker re-registration completed successfully")
+					c.logger.LogInfo(ctx, "Worker re-registration completed successfully",
+						logging.OperationField, "connection_health_routine")
 				}
 			} else {
-				c.logger.Debug("Connection health check passed")
+				c.logger.LogDebug(ctx, "Connection health check passed",
+					logging.OperationField, "connection_health_routine")
 			}
 		}
 	}
@@ -314,30 +347,34 @@ func (c *Client) heartbeatRoutine(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Second) // Default heartbeat interval
 	defer ticker.Stop()
 
-	c.logger.Debug("Heartbeat routine started",
+	c.logger.LogDebug(ctx, "Heartbeat routine started",
+		logging.OperationField, "heartbeat_routine",
 		"interval", "30s")
 
 	for {
 		select {
 		case <-ctx.Done():
-			c.logger.Debug("Heartbeat routine stopping due to context cancellation")
+			c.logger.LogDebug(ctx, "Heartbeat routine stopping due to context cancellation",
+				logging.OperationField, "heartbeat_routine")
 			return
 		case <-ticker.C:
-			c.logger.Debug("Sending heartbeat to API server")
+			c.logger.LogDebug(ctx, "Sending heartbeat to API server",
+				logging.OperationField, "heartbeat_routine")
 			if err := c.sendHeartbeatWithRetry(ctx); err != nil {
-				c.logger.Error("Heartbeat failed after retries",
-					"error", err,
+				c.logger.LogError(ctx, err, "Heartbeat failed after retries",
+					logging.OperationField, "heartbeat_routine",
 					"will_mark_disconnected", true)
 				c.setConnected(false)
 			} else {
-				c.logger.Debug("Heartbeat sent successfully")
+				c.logger.LogDebug(ctx, "Heartbeat sent successfully",
+					logging.OperationField, "heartbeat_routine")
 			}
 		}
 	}
 }
 
 func (c *Client) sendHeartbeatWithRetry(ctx context.Context) error {
-	return RetryOperation(ctx, "heartbeat", c.retryConfig, func() error {
+	return RetryOperation(ctx, c.logger, "heartbeat", c.retryConfig, func() error {
 		return c.doSendHeartbeat(ctx)
 	})
 }
@@ -354,7 +391,9 @@ func (c *Client) doSendHeartbeat(ctx context.Context) error {
 
 	if err := c.aiService.HealthCheck(ollamaCtx); err != nil {
 		services["ollama"] = "unhealthy"
-		c.logger.Warn("Ollama health check failed", "error", err.Error())
+		c.logger.LogWarn(ctx, "Ollama health check failed",
+			logging.OperationField, "do_send_heartbeat",
+			logging.ErrorField, err)
 	} else {
 		services["ollama"] = "healthy"
 	}
@@ -385,7 +424,8 @@ func (c *Client) doSendHeartbeat(ctx context.Context) error {
 		Stats:        stats,
 	}
 
-	c.logger.Debug("Sending heartbeat with worker statistics",
+	c.logger.LogDebug(ctx, "Sending heartbeat with worker statistics",
+		logging.OperationField, "do_send_heartbeat",
 		"active_tasks", stats.ActiveTasks,
 		"completed_tasks", stats.CompletedTasks,
 		"failed_tasks", stats.FailedTasks,
@@ -398,16 +438,20 @@ func (c *Client) doSendHeartbeat(ctx context.Context) error {
 	return c.connectionManager.ExecuteWithRetry(ctx, "heartbeat", func(client workerpb.APIWorkerServiceClient) error {
 		resp, err := client.WorkerHeartbeat(ctx, req)
 		if err != nil {
-			c.logger.Warn("Heartbeat request failed", "error", err)
+			c.logger.LogWarn(ctx, "Heartbeat request failed",
+				logging.OperationField, "do_send_heartbeat",
+				logging.ErrorField, err)
 			return fmt.Errorf("heartbeat request failed: %w", err)
 		}
 
 		if !resp.ConnectionHealthy {
-			c.logger.Warn("Server reports connection unhealthy",
+			c.logger.LogWarn(ctx, "Server reports connection unhealthy",
+				logging.OperationField, "do_send_heartbeat",
 				"message", resp.Message,
 				"server_time", resp.ServerTime)
 		} else {
-			c.logger.Debug("Heartbeat acknowledged by server",
+			c.logger.LogDebug(ctx, "Heartbeat acknowledged by server",
+				logging.OperationField, "do_send_heartbeat",
 				"server_time", resp.ServerTime)
 		}
 
@@ -422,12 +466,15 @@ func (c *Client) taskStreamingRoutine(ctx context.Context) {
 			return
 		default:
 			if err := c.streamTasksWithRetry(ctx); err != nil {
-				slog.Error("Task streaming failed after retries", "error", err)
+				c.logger.LogError(ctx, err, "Task streaming failed after retries",
+					logging.OperationField, "task_streaming_routine")
 				c.setConnected(false)
 
 				// Exponential backoff before retry
 				backoffDelay := c.retryConfig.CalculateDelay(1)
-				slog.Info("Backing off before reconnecting task stream", "delay", backoffDelay)
+				c.logger.LogInfo(ctx, "Backing off before reconnecting task stream",
+					logging.OperationField, "task_streaming_routine",
+					"delay", backoffDelay)
 
 				select {
 				case <-ctx.Done():
@@ -441,7 +488,7 @@ func (c *Client) taskStreamingRoutine(ctx context.Context) {
 }
 
 func (c *Client) streamTasksWithRetry(ctx context.Context) error {
-	return RetryOperation(ctx, "task_streaming", c.retryConfig, func() error {
+	return RetryOperation(ctx, c.logger, "task_streaming", c.retryConfig, func() error {
 		return c.doStreamTasks(ctx)
 	})
 }
@@ -472,7 +519,8 @@ func (c *Client) doStreamTasks(ctx context.Context) error {
 	}
 
 	c.setConnected(true)
-	slog.Info("Task streaming started successfully")
+	c.logger.LogInfo(ctx, "Task streaming started successfully",
+		logging.OperationField, "stream_tasks")
 
 	for {
 		task, err := stream.Recv()
@@ -502,9 +550,9 @@ func (c *Client) processTaskWithErrorHandling(ctx context.Context, task *workerp
 	})
 
 	if err != nil {
-		slog.Error("Task processing failed through circuit breaker",
-			"task_id", task.TaskId,
-			"error", err)
+		c.logger.LogError(ctx, err, "Task processing failed through circuit breaker",
+			logging.OperationField, "handle_task",
+			"task_id", task.TaskId)
 
 		// Report failure
 		c.reportTaskResultWithRetry(ctx, task.TaskId, workerpb.TaskStatus_TASK_STATUS_FAILED, "", err)
@@ -512,7 +560,8 @@ func (c *Client) processTaskWithErrorHandling(ctx context.Context, task *workerp
 }
 
 func (c *Client) processTask(ctx context.Context, task *workerpb.TaskRequest) error {
-	slog.Info("Processing task",
+	c.logger.LogInfo(ctx, "Processing task",
+		logging.OperationField, "process_task",
 		"task_id", task.TaskId,
 		"task_type", task.TaskType,
 		"deadline", task.Deadline)
@@ -555,12 +604,13 @@ func (c *Client) processTask(ctx context.Context, task *workerpb.TaskRequest) er
 	status := workerpb.TaskStatus_TASK_STATUS_COMPLETED
 	if processErr != nil {
 		status = workerpb.TaskStatus_TASK_STATUS_FAILED
-		slog.Error("Task processing failed",
+		c.logger.LogError(ctx, processErr, "Task processing failed",
+			logging.OperationField, "process_task",
 			"task_id", task.TaskId,
-			"duration", time.Since(startTime),
-			"error", processErr)
+			"duration", time.Since(startTime))
 	} else {
-		slog.Info("Task completed successfully",
+		c.logger.LogInfo(ctx, "Task completed successfully",
+			logging.OperationField, "process_task",
 			"task_id", task.TaskId,
 			"duration", time.Since(startTime))
 	}
@@ -588,7 +638,7 @@ func (c *Client) processTask(ctx context.Context, task *workerpb.TaskRequest) er
 func (c *Client) processInsightTaskWithRetry(ctx context.Context, task *workerpb.TaskRequest) (string, error) {
 	var result string
 
-	err := RetryOperation(ctx, "insight_generation", c.retryConfig, func() error {
+	err := RetryOperation(ctx, c.logger, "insight_generation", c.retryConfig, func() error {
 		var err error
 		result, err = c.processInsightTask(ctx, task)
 		return err
@@ -600,7 +650,7 @@ func (c *Client) processInsightTaskWithRetry(ctx context.Context, task *workerpb
 func (c *Client) processWeeklyReportTaskWithRetry(ctx context.Context, task *workerpb.TaskRequest) (string, error) {
 	var result string
 
-	err := RetryOperation(ctx, "weekly_report_generation", c.retryConfig, func() error {
+	err := RetryOperation(ctx, c.logger, "weekly_report_generation", c.retryConfig, func() error {
 		var err error
 		result, err = c.processWeeklyReportTask(ctx, task)
 		return err
@@ -666,14 +716,14 @@ func (c *Client) processWeeklyReportTask(ctx context.Context, task *workerpb.Tas
 }
 
 func (c *Client) updateTaskProgress(ctx context.Context, taskID string, progress int32, message string) {
-	err := RetryOperation(ctx, "update_task_progress", c.retryConfig, func() error {
+	err := RetryOperation(ctx, c.logger, "update_task_progress", c.retryConfig, func() error {
 		return c.doUpdateTaskProgress(ctx, taskID, progress, message)
 	})
 
 	if err != nil {
-		slog.Error("Failed to update task progress after retries",
-			"task_id", taskID,
-			"error", err)
+		c.logger.LogError(ctx, err, "Failed to update task progress after retries",
+			logging.OperationField, "update_task_progress_with_retry",
+			"task_id", taskID)
 	}
 }
 
@@ -696,15 +746,15 @@ func (c *Client) doUpdateTaskProgress(ctx context.Context, taskID string, progre
 }
 
 func (c *Client) reportTaskResultWithRetry(ctx context.Context, taskID string, status workerpb.TaskStatus, result string, taskErr error) {
-	err := RetryOperation(ctx, "report_task_result", c.retryConfig, func() error {
+	err := RetryOperation(ctx, c.logger, "report_task_result", c.retryConfig, func() error {
 		return c.doReportTaskResult(ctx, taskID, status, result, taskErr)
 	})
 
 	if err != nil {
-		slog.Error("Failed to report task result after retries",
+		c.logger.LogError(ctx, err, "Failed to report task result after retries",
+			logging.OperationField, "report_task_result_with_retry",
 			"task_id", taskID,
-			"status", status,
-			"error", err)
+			"status", status)
 	}
 }
 
@@ -742,12 +792,12 @@ func (c *Client) statisticsRoutine(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			c.logStatistics()
+			c.logStatistics(ctx)
 		}
 	}
 }
 
-func (c *Client) logStatistics() {
+func (c *Client) logStatistics(ctx context.Context) {
 	c.stats.mutex.RLock()
 	stats := map[string]any{
 		"worker_id":       c.workerID,
@@ -760,7 +810,7 @@ func (c *Client) logStatistics() {
 	c.stats.mutex.RUnlock()
 
 	// Add connection stats
-	connectionStats := c.connectionManager.GetStats()
+	connectionStats := c.connectionManager.GetStats(ctx)
 	for k, v := range connectionStats {
 		stats["connection_"+k] = v
 	}
@@ -776,7 +826,8 @@ func (c *Client) logStatistics() {
 		stats["task_processing_breaker_"+k] = v
 	}
 
-	slog.Info("Worker statistics",
+	c.logger.LogInfo(ctx, "Worker statistics",
+		logging.OperationField, "log_statistics",
 		"stats", stats)
 }
 
@@ -815,9 +866,9 @@ func (c *Client) getWorkerStatus() workerpb.WorkerStatus {
 }
 
 // Health check methods
-func (c *Client) IsHealthy() bool {
+func (c *Client) IsHealthy(ctx context.Context) bool {
 	// Check gRPC connection and AI service
-	return c.isConnected() && c.aiService.HealthCheck(context.Background()) == nil
+	return c.isConnected() && c.aiService.HealthCheck(ctx) == nil
 }
 
 func (c *Client) IsReady() bool {

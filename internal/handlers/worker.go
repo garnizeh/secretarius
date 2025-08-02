@@ -22,7 +22,8 @@ func NewWorkerHandlers(grpcManager *grpc.Manager) *WorkerHandlers {
 
 // GetActiveWorkers returns information about active workers
 func (h *WorkerHandlers) GetActiveWorkers(c *gin.Context) {
-	workers := h.grpcManager.GetActiveWorkers()
+	ctx := c.Request.Context()
+	workers := h.grpcManager.GetActiveWorkers(ctx)
 
 	response := make([]gin.H, 0, len(workers))
 	for _, worker := range workers {
@@ -57,7 +58,9 @@ func (h *WorkerHandlers) RequestInsightGeneration(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
 	taskID, err := h.grpcManager.QueueInsightGenerationTask(
+		ctx,
 		req.UserID,
 		req.EntryIDs,
 		req.InsightType,
@@ -99,7 +102,8 @@ func (h *WorkerHandlers) RequestWeeklyReport(c *gin.Context) {
 		return
 	}
 
-	taskID, err := h.grpcManager.QueueWeeklyReportTask(req.UserID, weekStart, weekEnd)
+	ctx := c.Request.Context()
+	taskID, err := h.grpcManager.QueueWeeklyReportTask(ctx, req.UserID, weekStart, weekEnd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -119,7 +123,8 @@ func (h *WorkerHandlers) GetTaskResult(c *gin.Context) {
 		return
 	}
 
-	result, exists := h.grpcManager.GetTaskResult(taskID)
+	ctx := c.Request.Context()
+	result, exists := h.grpcManager.GetTaskResult(ctx, taskID)
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found or not completed yet"})
 		return
@@ -138,7 +143,8 @@ func (h *WorkerHandlers) GetTaskResult(c *gin.Context) {
 
 // HealthCheck provides health status of the worker system
 func (h *WorkerHandlers) HealthCheck(c *gin.Context) {
-	workers := h.grpcManager.GetActiveWorkers()
+	ctx := c.Request.Context()
+	workers := h.grpcManager.GetActiveWorkers(ctx)
 
 	healthStatus := "healthy"
 	if len(workers) == 0 {

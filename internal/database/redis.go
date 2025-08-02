@@ -11,9 +11,7 @@ import (
 )
 
 // NewRedisClient creates a new Redis client instance with the provided configuration
-func NewRedisClient(cfg config.RedisConfig, logger *logging.Logger) (*redis.Client, error) {
-	ctx := context.Background()
-
+func NewRedisClient(ctx context.Context, cfg config.RedisConfig, logger *logging.Logger) (*redis.Client, error) {
 	// Create Redis client
 	rdb := redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -47,10 +45,10 @@ func NewRedisClient(cfg config.RedisConfig, logger *logging.Logger) (*redis.Clie
 }
 
 // CloseRedisClient gracefully closes the Redis client connection
-func CloseRedisClient(client *redis.Client, logger *logging.Logger) {
+func CloseRedisClient(ctx context.Context, client *redis.Client, logger *logging.Logger) {
 	if client != nil {
 		if err := client.Close(); err != nil {
-			logger.LogError(context.Background(), err, "Error closing Redis connection")
+			logger.LogError(ctx, err, "Error closing Redis connection")
 		} else {
 			logger.Info("Redis connection closed successfully")
 		}

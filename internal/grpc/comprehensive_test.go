@@ -19,6 +19,7 @@ import (
 
 // TestWorkerCapabilityMatching tests worker capability matching functionality
 func TestWorkerCapabilityMatching(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfigForCapabilities()
 	logger := createTestLoggerForCapabilities()
 	server := grpc.NewServer(cfg, logger)
@@ -117,7 +118,7 @@ func TestWorkerCapabilityMatching(t *testing.T) {
 			}
 
 			// Queue the task
-			err := server.QueueTask(task)
+			err := server.QueueTask(ctx, task)
 			require.NoError(t, err, tt.description)
 
 			// Note: In a real test, we would need to implement task streaming
@@ -129,6 +130,7 @@ func TestWorkerCapabilityMatching(t *testing.T) {
 
 // TestTaskPriorityAndDeadlines tests task priority and deadline handling
 func TestTaskPriorityAndDeadlines(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfigForCapabilities()
 	logger := createTestLoggerForCapabilities()
 	server := grpc.NewServer(cfg, logger)
@@ -200,7 +202,7 @@ func TestTaskPriorityAndDeadlines(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, task := range tt.tasks {
-				err := server.QueueTask(task)
+				err := server.QueueTask(ctx, task)
 
 				if tt.wantErr {
 					assert.Error(t, err, tt.testDesc)
@@ -214,6 +216,7 @@ func TestTaskPriorityAndDeadlines(t *testing.T) {
 
 // TestTaskMetadata tests task metadata handling
 func TestTaskMetadata(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfigForCapabilities()
 	logger := createTestLoggerForCapabilities()
 	server := grpc.NewServer(cfg, logger)
@@ -295,7 +298,7 @@ func TestTaskMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := server.QueueTask(tt.task)
+			err := server.QueueTask(ctx, tt.task)
 
 			if tt.wantErr {
 				assert.Error(t, err, tt.testDesc)
@@ -308,11 +311,10 @@ func TestTaskMetadata(t *testing.T) {
 
 // TestWorkerStatsAndStatus tests worker statistics and status tracking
 func TestWorkerStatsAndStatus(t *testing.T) {
+	ctx := context.Background()
 	cfg := createTestConfigForCapabilities()
 	logger := createTestLoggerForCapabilities()
 	server := grpc.NewServer(cfg, logger)
-
-	ctx := context.Background()
 
 	// Register a worker
 	registerResp := registerWorker(t, server, &workerpb.RegisterWorkerRequest{
@@ -433,7 +435,7 @@ func TestWorkerStatsAndStatus(t *testing.T) {
 				assert.NotNil(t, resp.ServerTime)
 
 				// Verify stats are stored in worker info (except for error status workers which may be auto-removed)
-				workers := server.GetActiveWorkers()
+				workers := server.GetActiveWorkers(ctx)
 				if tt.heartbeat.Status != workerpb.WorkerStatus_WORKER_STATUS_ERROR {
 					assert.Contains(t, workers, "stats-worker")
 					worker := workers["stats-worker"]

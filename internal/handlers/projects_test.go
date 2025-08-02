@@ -18,7 +18,7 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 
 	t.Run("successful project creation", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -52,7 +52,7 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 
 	t.Run("unauthorized access", func(t *testing.T) {
 		// Setup test environment
-		router, _, _, _, _ := setupTestRouterWithServices(t)
+		router, _, _, _, _ := RouterWithServices(t)
 
 		projectReq := models.ProjectRequest{
 			Name:   "Test Project",
@@ -71,7 +71,7 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -93,7 +93,7 @@ func TestProjectHandler_GetProject(t *testing.T) {
 
 	t.Run("successful project retrieval", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -119,7 +119,7 @@ func TestProjectHandler_GetProject(t *testing.T) {
 
 	t.Run("project not found", func(t *testing.T) {
 		// Setup test environment
-		router, userService, _, _, _ := setupTestRouterWithServices(t)
+		router, userService, _, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -140,7 +140,7 @@ func TestProjectHandler_GetProjects(t *testing.T) {
 
 	t.Run("successful projects list", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -170,7 +170,7 @@ func TestProjectHandler_UpdateProject(t *testing.T) {
 
 	t.Run("successful project update", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)
@@ -210,7 +210,7 @@ func TestProjectHandler_DeleteProject(t *testing.T) {
 
 	t.Run("successful project deletion", func(t *testing.T) {
 		// Setup test environment
-		router, userService, projectService, _, _ := setupTestRouterWithServices(t)
+		router, userService, projectService, _, _ := RouterWithServices(t)
 
 		// Create and login user
 		user := createTestUser(t, userService)

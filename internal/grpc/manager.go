@@ -40,7 +40,7 @@ func NewManager(cfg *config.Config, logger *logging.Logger) *Manager {
 }
 
 // Start starts the gRPC server
-func (m *Manager) Start() error {
+func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (m *Manager) Start() error {
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		m.logger.LogError(context.Background(), err, "Failed to listen on address",
+		m.logger.LogError(ctx, err, "Failed to listen on address",
 			"address", address)
 		return fmt.Errorf("failed to listen on %s: %w", address, err)
 	}
@@ -70,16 +70,18 @@ func (m *Manager) Start() error {
 			m.config.GRPC.TLSKeyFile,
 		)
 		if err != nil {
-			m.logger.LogError(context.Background(), err, "Failed to load TLS credentials",
+			m.logger.LogError(ctx, err, "Failed to load TLS credentials",
 				"cert_file", m.config.GRPC.TLSCertFile,
 				"key_file", m.config.GRPC.TLSKeyFile)
 			return fmt.Errorf("failed to load TLS credentials: %w", err)
 		}
 		opts = append(opts, grpc.Creds(creds))
-		m.logger.Info("gRPC server configured with TLS",
+		m.logger.LogInfo(ctx, "gRPC server configured with TLS",
+			logging.OperationField, "grpc_setup",
 			"cert", m.config.GRPC.TLSCertFile)
 	} else {
-		m.logger.Warn("gRPC server running without TLS - not recommended for production")
+		m.logger.LogWarn(ctx, "gRPC server running without TLS - not recommended for production",
+			logging.OperationField, "grpc_setup")
 	}
 
 	// Create gRPC server
@@ -92,7 +94,8 @@ func (m *Manager) Start() error {
 	m.stopped = false
 
 	setupDuration := time.Since(start)
-	m.logger.Info("Starting gRPC server",
+	m.logger.LogInfo(ctx, "Starting gRPC server",
+		logging.OperationField, "grpc_startup",
 		"address", address,
 		"tls_enabled", m.config.GRPC.TLSEnabled,
 		"setup_duration_ms", setupDuration.Milliseconds())
@@ -101,19 +104,19 @@ func (m *Manager) Start() error {
 	grpcServer := m.grpcServer
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
-			m.logger.LogError(context.Background(), err, "gRPC server failed",
+			m.logger.LogError(ctx, err, "gRPC server failed",
 				"address", address)
 		}
 	}()
 
 	// Start periodic worker cleanup
-	m.server.StartPeriodicCleanup(context.Background())
+	m.server.StartPeriodicCleanup(ctx)
 
 	return nil
 }
 
 // Stop gracefully stops the gRPC server
-func (m *Manager) Stop() error {
+func (m *Manager) Stop(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -126,12 +129,14 @@ func (m *Manager) Stop() error {
 	m.stopped = true
 
 	if m.grpcServer != nil {
-		m.logger.Info("Stopping gRPC server")
+		m.logger.LogInfo(ctx, "Stopping gRPC server",
+			logging.OperationField, "grpc_shutdown")
 		m.grpcServer.GracefulStop()
 
 		duration := time.Since(start)
 		m.logger.LogShutdown("grpc-manager", "graceful_stop", true)
-		m.logger.Info("gRPC server stopped gracefully",
+		m.logger.LogInfo(ctx, "gRPC server stopped gracefully",
+			logging.OperationField, "grpc_shutdown",
 			"shutdown_duration_ms", duration.Milliseconds())
 		m.grpcServer = nil
 	}
@@ -139,7 +144,8 @@ func (m *Manager) Stop() error {
 	if m.listener != nil {
 		if err := m.listener.Close(); err != nil {
 			// Log o erro mas não retorne, pois já marcamos como stopped
-			m.logger.LogError(context.Background(), err, "Error closing listener")
+			m.logger.LogError(ctx, err, "Error closing listener",
+				logging.OperationField, "grpc_shutdown")
 		}
 		m.listener = nil
 	}
@@ -153,11 +159,12 @@ func (m *Manager) GetServer() *Server {
 }
 
 // QueueInsightGenerationTask queues an insight generation task
-func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, insightType string, contextData any) (string, error) {
+func (m *Manager) QueueInsightGenerationTask(ctx context.Context, userID string, entryIDs []string, insightType string, contextData any) (string, error) {
 	start := time.Now()
 	taskID := fmt.Sprintf("insight_%s_%d", userID, time.Now().Unix())
 
-	m.logger.Info("Queuing insight generation task",
+	m.logger.LogInfo(ctx, "Queuing insight generation task",
+		logging.OperationField, "queue_insight_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"entry_count", len(entryIDs),
@@ -173,7 +180,8 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 
 	payloadJSON, err := jsonMarshal(payload)
 	if err != nil {
-		m.logger.LogError(context.Background(), err, "Failed to marshal insight task payload",
+		m.logger.LogError(ctx, err, "Failed to marshal insight task payload",
+			logging.OperationField, "queue_insight_task",
 			"task_id", taskID,
 			"user_id", userID)
 		return "", fmt.Errorf("failed to marshal task payload: %w", err)
@@ -192,18 +200,20 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 		},
 	}
 
-	err = m.server.QueueTask(task)
+	err = m.server.QueueTask(ctx, task)
 	duration := time.Since(start)
 
 	if err != nil {
-		m.logger.LogError(context.Background(), err, "Failed to queue insight generation task",
+		m.logger.LogError(ctx, err, "Failed to queue insight generation task",
+			logging.OperationField, "queue_insight_task",
 			"task_id", taskID,
 			"user_id", userID,
 			"duration_ms", duration.Milliseconds())
 		return "", err
 	}
 
-	m.logger.Info("Insight generation task queued successfully",
+	m.logger.LogInfo(ctx, "Insight generation task queued successfully",
+		logging.OperationField, "queue_insight_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"duration_ms", duration.Milliseconds())
@@ -212,11 +222,12 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 }
 
 // QueueWeeklyReportTask queues a weekly report generation task
-func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.Time) (string, error) {
+func (m *Manager) QueueWeeklyReportTask(ctx context.Context, userID string, weekStart, weekEnd time.Time) (string, error) {
 	start := time.Now()
 	taskID := fmt.Sprintf("report_%s_%d", userID, time.Now().Unix())
 
-	m.logger.Info("Queuing weekly report task",
+	m.logger.LogInfo(ctx, "Queuing weekly report task",
+		logging.OperationField, "queue_weekly_report_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"week_start", weekStart.Format("2006-01-02"),
@@ -231,7 +242,8 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 
 	payloadJSON, err := jsonMarshal(payload)
 	if err != nil {
-		m.logger.LogError(context.Background(), err, "Failed to marshal weekly report task payload",
+		m.logger.LogError(ctx, err, "Failed to marshal weekly report task payload",
+			logging.OperationField, "queue_weekly_report_task",
 			"task_id", taskID,
 			"user_id", userID)
 		return "", fmt.Errorf("failed to marshal task payload: %w", err)
@@ -249,18 +261,20 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 		},
 	}
 
-	err = m.server.QueueTask(task)
+	err = m.server.QueueTask(ctx, task)
 	duration := time.Since(start)
 
 	if err != nil {
-		m.logger.LogError(context.Background(), err, "Failed to queue weekly report task",
+		m.logger.LogError(ctx, err, "Failed to queue weekly report task",
+			logging.OperationField, "queue_weekly_report_task",
 			"task_id", taskID,
 			"user_id", userID,
 			"duration_ms", duration.Milliseconds())
 		return "", err
 	}
 
-	m.logger.Info("Weekly report task queued successfully",
+	m.logger.LogInfo(ctx, "Weekly report task queued successfully",
+		logging.OperationField, "queue_weekly_report_task",
 		"task_id", taskID,
 		"user_id", userID,
 		"duration_ms", duration.Milliseconds())
@@ -269,20 +283,22 @@ func (m *Manager) QueueWeeklyReportTask(userID string, weekStart, weekEnd time.T
 }
 
 // GetTaskResult retrieves the result of a completed task
-func (m *Manager) GetTaskResult(taskID string) (*TaskResult, bool) {
+func (m *Manager) GetTaskResult(ctx context.Context, taskID string) (*TaskResult, bool) {
 	start := time.Now()
 
 	result, found := m.server.GetTaskResult(taskID)
 	duration := time.Since(start)
 
 	if found {
-		m.logger.Debug("Task result retrieved",
+		m.logger.LogDebug(ctx, "Task result retrieved",
+			logging.OperationField, "get_task_result",
 			"task_id", taskID,
 			"worker_id", result.WorkerID,
 			"status", result.Status,
 			"duration_ms", duration.Milliseconds())
 	} else {
-		m.logger.Debug("Task result not found",
+		m.logger.LogDebug(ctx, "Task result not found",
+			logging.OperationField, "get_task_result",
 			"task_id", taskID,
 			"duration_ms", duration.Milliseconds())
 	}
@@ -291,8 +307,8 @@ func (m *Manager) GetTaskResult(taskID string) (*TaskResult, bool) {
 }
 
 // GetActiveWorkers returns information about active workers
-func (m *Manager) GetActiveWorkers() map[string]*WorkerInfo {
-	return m.server.GetActiveWorkers()
+func (m *Manager) GetActiveWorkers(ctx context.Context) map[string]*WorkerInfo {
+	return m.server.GetActiveWorkers(ctx)
 }
 
 // HealthCheck performs a health check of the gRPC server
