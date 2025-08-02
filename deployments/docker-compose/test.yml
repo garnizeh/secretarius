@@ -11,7 +11,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../../scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U englog_test -d englog_test"]
       interval: 10s
@@ -38,7 +38,7 @@ services:
 
   api-test:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/Dockerfile
       target: development
     container_name: englog-api-test
@@ -68,12 +68,12 @@ services:
     networks:
       - englog-test-network
     volumes:
-      - ./logs:/app/logs
+      - ../../logs:/app/logs
     command: ["./bin/api"]
 
   worker-test:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/Dockerfile
       target: development
     container_name: englog-worker-test
@@ -92,7 +92,7 @@ services:
     networks:
       - englog-test-network
     volumes:
-      - ./logs:/app/logs
+      - ../../logs:/app/logs
     command: ["./bin/worker"]
 
 volumes:

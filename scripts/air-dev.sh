@@ -32,17 +32,35 @@ check_air() {
 
 # Function to check if required env files exist
 check_env_files() {
+    # Check for API dev environment
     if [[ ! -f ".env.api-dev" ]]; then
-        print_colored $YELLOW "Warning: .env.api-dev not found. Using .env.dev as fallback."
-        if [[ -f ".env.dev" ]]; then
+        if [[ -f "deployments/environments/development/.env.api-dev" ]]; then
+            print_colored $YELLOW "Copying .env.api-dev from deployments/environments/development/"
+            cp deployments/environments/development/.env.api-dev .env.api-dev
+        elif [[ -f "deployments/environments/development/.env.dev" ]]; then
+            print_colored $YELLOW "Warning: .env.api-dev not found. Using .env.dev as fallback."
+            cp deployments/environments/development/.env.dev .env.api-dev
+        elif [[ -f ".env.dev" ]]; then
             cp .env.dev .env.api-dev
+        else
+            print_colored $RED "Error: No API development environment found. Run 'make env-api-dev'"
+            exit 1
         fi
     fi
 
+    # Check for Worker dev environment
     if [[ ! -f ".env.worker-dev" ]]; then
-        print_colored $YELLOW "Warning: .env.worker-dev not found. Using .env.dev as fallback."
-        if [[ -f ".env.dev" ]]; then
+        if [[ -f "deployments/environments/development/.env.worker-dev" ]]; then
+            print_colored $YELLOW "Copying .env.worker-dev from deployments/environments/development/"
+            cp deployments/environments/development/.env.worker-dev .env.worker-dev
+        elif [[ -f "deployments/environments/development/.env.dev" ]]; then
+            print_colored $YELLOW "Warning: .env.worker-dev not found. Using .env.dev as fallback."
+            cp deployments/environments/development/.env.dev .env.worker-dev
+        elif [[ -f ".env.dev" ]]; then
             cp .env.dev .env.worker-dev
+        else
+            print_colored $RED "Error: No Worker development environment found. Run 'make env-worker-dev'"
+            exit 1
         fi
     fi
 }

@@ -2,17 +2,17 @@ services:
   # Development API Server
   api-server-dev:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/api/Dockerfile.dev
     container_name: englog_api_dev
     ports:
       - "8080:8080"
       - "9090:9090"
     volumes:
-      - .:/app
-      - ./logs/api:/app/logs
+      - ../..:/app
+      - ../../logs/api:/app/logs
     env_file:
-      - .env.api-dev
+      - ../environments/development/.env.api-dev
     networks:
       - dev
     depends_on:
@@ -24,14 +24,14 @@ services:
   # Development Worker
   worker-dev:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/worker/Dockerfile.dev
     container_name: englog_worker_dev
     env_file:
-      - .env.worker-dev
+      - ../environments/development/.env.worker-dev
     volumes:
-      - .:/app
-      - ./logs/worker:/app/logs
+      - ../..:/app
+      - ../../logs/worker:/app/logs
     networks:
       - dev
     depends_on:
@@ -50,7 +50,7 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../../scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U englog -d englog"]
       interval: 10s

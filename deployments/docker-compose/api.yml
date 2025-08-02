@@ -9,10 +9,10 @@ services:
       - "443:443"
       - "443:443/udp"  # HTTP/3
     volumes:
-      - ./deployments/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../deployments/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      - ./logs/caddy:/var/log/caddy
+      - ../../logs/caddy:/var/log/caddy
     networks:
       - public
     depends_on:
@@ -28,7 +28,7 @@ services:
   # API Server (Main Application)
   api-server:
     build:
-      context: .
+      context: ../..
       dockerfile: deployments/api/Dockerfile
     container_name: englog_api_server
     restart: unless-stopped
@@ -36,9 +36,9 @@ services:
       - "8080"  # HTTP API (internal only)
       - "9090"  # gRPC Server (internal only)
     env_file:
-      - .env.api-dev
+      - ../environments/production/.env.api
     volumes:
-      - ./logs/api:/app/logs
+      - ../../logs/api:/app/logs
     networks:
       - public
       - private
@@ -64,8 +64,8 @@ services:
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./logs/postgres:/var/log/postgresql
+      - ../../scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ../../logs/postgres:/var/log/postgresql
     networks:
       - private
     ports:
@@ -86,7 +86,7 @@ services:
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
     volumes:
       - redis_data:/data
-      - ./logs/redis:/var/log/redis
+      - ../../logs/redis:/var/log/redis
     networks:
       - private
     ports:
@@ -105,7 +105,7 @@ services:
   #   ports:
   #     - "9093:9090"
   #   volumes:
-  #     - ./deployments/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - ../../deployments/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
   #     - prometheus_data:/prometheus
   #   networks:
   #     - public
@@ -130,8 +130,8 @@ services:
   #     - GF_USERS_ALLOW_SIGN_UP=false
   #   volumes:
   #     - grafana_data:/var/lib/grafana
-  #     - ./deployments/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-  #     - ./deployments/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+  #     - ../../deployments/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+  #     - ../../deployments/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
   #   networks:
   #     - public
   #     - private

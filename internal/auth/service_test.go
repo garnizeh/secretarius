@@ -37,7 +37,7 @@ func TestCreateAccessToken(t *testing.T) {
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 	userID := uuid.New().String()
 
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(context.Background(), userID)
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -67,7 +67,7 @@ func TestCreateRefreshToken(t *testing.T) {
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key")
 	userID := uuid.New().String()
 
-	token, err := authService.CreateRefreshToken(userID)
+	token, err := authService.CreateRefreshToken(context.Background(), userID)
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
@@ -99,7 +99,7 @@ func TestValidateTokenWithValidAccessToken(t *testing.T) {
 	userID := uuid.New().String()
 
 	// Create an access token
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(ctx, userID)
 	require.NoError(t, err)
 
 	// Validate the token
@@ -204,7 +204,7 @@ func TestHashPassword(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			hash, err := authService.HashPassword(tc.password)
+			hash, err := authService.HashPassword(context.Background(), tc.password)
 
 			require.NoError(t, err)
 			assert.NotEmpty(t, hash)
@@ -223,7 +223,7 @@ func TestCheckPassword(t *testing.T) {
 	authService := auth.NewAuthServiceForTest(nil, testLogger, "test-secret-key")
 
 	password := "test-password-123"
-	hash, err := authService.HashPassword(password)
+	hash, err := authService.HashPassword(context.Background(), password)
 	require.NoError(t, err)
 
 	// Test correct password
@@ -287,9 +287,11 @@ func TestMultipleTokensUniqueness(t *testing.T) {
 
 	refreshTokens := make(map[string]bool)
 
+	ctx := context.Background()
+
 	// Generate 10 refresh tokens (these should be unique due to JTI)
 	for i := 0; i < 10; i++ {
-		token, err := authService.CreateRefreshToken(userID)
+		token, err := authService.CreateRefreshToken(ctx, userID)
 		require.NoError(t, err)
 
 		// Ensure this token hasn't been generated before
@@ -298,13 +300,13 @@ func TestMultipleTokensUniqueness(t *testing.T) {
 	}
 
 	// Test that access tokens with different seconds are different
-	token1, err := authService.CreateAccessToken(userID)
+	token1, err := authService.CreateAccessToken(ctx, userID)
 	require.NoError(t, err)
 
 	// Wait to ensure different second timestamp
 	time.Sleep(1100 * time.Millisecond)
 
-	token2, err := authService.CreateAccessToken(userID)
+	token2, err := authService.CreateAccessToken(ctx, userID)
 	require.NoError(t, err)
 
 	// These should be different due to different seconds
@@ -324,7 +326,7 @@ func TestGenerateJTI(t *testing.T) {
 
 	// Generate multiple refresh tokens and extract their JTIs
 	for i := 0; i < 50; i++ {
-		token, err := authService.CreateRefreshToken(userID)
+		token, err := authService.CreateRefreshToken(context.Background(), userID)
 		require.NoError(t, err)
 
 		// Parse token to get JTI
@@ -355,7 +357,7 @@ func BenchmarkCreateAccessToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := authService.CreateAccessToken(userID)
+		_, err := authService.CreateAccessToken(context.Background(), userID)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -371,7 +373,7 @@ func BenchmarkCreateRefreshToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := authService.CreateRefreshToken(userID)
+		_, err := authService.CreateRefreshToken(context.Background(), userID)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -385,7 +387,7 @@ func BenchmarkValidateToken(b *testing.B) {
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(context.Background(), userID)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -408,7 +410,7 @@ func BenchmarkHashPassword(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := authService.HashPassword(password)
+		_, err := authService.HashPassword(context.Background(), password)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -421,7 +423,7 @@ func BenchmarkCheckPassword(b *testing.B) {
 
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 	password := "benchmark-password-123"
-	hash, err := authService.HashPassword(password)
+	hash, err := authService.HashPassword(context.Background(), password)
 	if err != nil {
 		b.Fatal(err)
 	}

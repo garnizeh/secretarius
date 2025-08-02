@@ -41,6 +41,17 @@ Thumbs.db
 .env.test
 .env.production
 
+# Environment files (actual values, not templates)
+deployments/environments/development/.env.dev
+deployments/environments/development/.env.api-dev
+deployments/environments/development/.env.worker-dev
+deployments/environments/testing/.env.test
+deployments/environments/production/.env.api
+deployments/environments/production/.env.worker
+deployments/environments/**/.env
+deployments/environments/**/.env.*
+!deployments/environments/**/*.example
+
 # Local development
 *.local
 

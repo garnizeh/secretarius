@@ -1,7 +1,7 @@
 # EngLog Makefile
 # "Make it so!" - Jean-Luc Picard 🚀
 
-.PHONY: help build clean test test-unit test-integration test-e2e test-coverage test-race test-security test-performance test-clean test-docker-up test-docker-down test-fix generate-mocks lint dev-up dev-down dev-restart prod-api-up prod-api-down prod-worker-up prod-worker-down deploy-machine1 deploy-machine2 run-api run-worker health-api generate migrate-up migrate-down migrate-status migrate-reset migrate-create sqlc proto swagger docker-build docker-push git-clean-branches
+.PHONY: help build clean test test-unit test-integration test-e2e test-coverage test-race test-security test-performance test-clean test-docker-up test-docker-down test-fix generate-mocks lint dev-up dev-down dev-api-up dev-api-down dev-worker-up dev-worker-down dev-restart infra-up infra-down infra-logs infra-restart prod-api-up prod-api-down prod-worker-up prod-worker-down deploy-machine1 deploy-machine2 run-api run-worker health-api generate migrate-up migrate-down migrate-status migrate-reset migrate-create sqlc proto swagger docker-build docker-push git-clean-branches env-dev env-api-dev env-worker-dev env-test env-prod-api env-prod-worker env-check
 
 # Default target
 .DEFAULT_GOAL := help
@@ -57,6 +57,53 @@ git-clean-branches:
 	@git branch -vv | grep ': gone]' | awk '{print $$1}' | xargs -r git branch -D
 	@echo "Local branch cleanup completed!"
 
+## env-dev: Setup development environment configuration
+env-dev:
+	@echo "Setting up development environment..."
+	@cp deployments/environments/development/.env.dev .env
+	@echo "✅ Development environment configured! Edit .env if needed."
+
+## env-api-dev: Setup API development environment configuration
+env-api-dev:
+	@echo "Setting up API development environment..."
+	@cp deployments/environments/development/.env.api-dev .env
+	@echo "✅ API development environment configured! Edit .env if needed."
+
+## env-worker-dev: Setup Worker development environment configuration
+env-worker-dev:
+	@echo "Setting up Worker development environment..."
+	@cp deployments/environments/development/.env.worker-dev .env
+	@echo "✅ Worker development environment configured! Edit .env if needed."
+
+## env-test: Setup testing environment configuration
+env-test:
+	@echo "Setting up testing environment..."
+	@cp deployments/environments/testing/.env.test .env.test
+	@echo "✅ Testing environment configured!"
+
+## env-prod-api: Setup production API environment template
+env-prod-api:
+	@echo "Setting up production API environment template..."
+	@cp deployments/environments/production/.env.api.example .env
+	@echo "⚠️  IMPORTANT: Edit .env with your production values before deploying!"
+
+## env-prod-worker: Setup production Worker environment template
+env-prod-worker:
+	@echo "Setting up production Worker environment template..."
+	@cp deployments/environments/production/.env.worker.example .env
+	@echo "⚠️  IMPORTANT: Edit .env with your production values before deploying!"
+
+## env-check: Check current environment configuration
+env-check:
+	@echo "Current Environment Configuration:"
+	@echo "=================================="
+	@if [ -f .env ]; then \
+		echo "✅ Environment file found: .env"; \
+		echo "Environment type: $$(grep APP_ENV .env 2>/dev/null || echo 'Not specified')"; \
+	else \
+		echo "❌ No .env file found. Run 'make env-dev' to set up development environment."; \
+	fi
+
 ## test: Run all tests
 test:
 	@echo "Running tests..."
@@ -106,11 +153,11 @@ test-clean:
 
 ## test-docker-up: Start Docker test environment
 test-docker-up:
-	docker compose -f docker-compose.test.yml up -d --build
+	docker compose -f deployments/docker-compose/test.yml up -d --build
 
 ## test-docker-down: Stop Docker test environment
 test-docker-down:
-	docker compose -f docker-compose.test.yml down -v
+	docker compose -f deployments/docker-compose/test.yml down -v
 
 ## test-fix: Fix failing handler tests
 test-fix:
@@ -180,33 +227,53 @@ migrate-create:
 ## dev-up: Start development environment with Docker Compose
 dev-up:
 	@echo "Starting development environment..."
-	@docker compose -f docker-compose.dev.yml up -d --build
+	@docker compose -f deployments/docker-compose/dev.yml up -d --build
 
 ## dev-down: Stop development environment
 dev-down:
 	@echo "Stopping development environment..."
-	@docker compose -f docker-compose.dev.yml down
+	@docker compose -f deployments/docker-compose/dev.yml down
 
 ## dev-logs: View development environment logs
 dev-logs:
-	@docker compose -f docker-compose.dev.yml logs -f
+	@docker compose -f deployments/docker-compose/dev.yml logs -f
 
 ## dev-restart: Restart development environment
 dev-restart: dev-down dev-up
 
+## dev-api-up: Start API development environment only
+dev-api-up:
+	@echo "Starting API development environment..."
+	@docker compose -f deployments/docker-compose/api-dev.yml up -d --build
+
+## dev-api-down: Stop API development environment
+dev-api-down:
+	@echo "Stopping API development environment..."
+	@docker compose -f deployments/docker-compose/api-dev.yml down
+
+## dev-worker-up: Start Worker development environment only
+dev-worker-up:
+	@echo "Starting Worker development environment..."
+	@docker compose -f deployments/docker-compose/worker-dev.yml up -d --build
+
+## dev-worker-down: Stop Worker development environment
+dev-worker-down:
+	@echo "Stopping Worker development environment..."
+	@docker compose -f deployments/docker-compose/worker-dev.yml down
+
 ## infra-up: Start development environment (infrastructure only) with Docker Compose
 infra-up:
 	@echo "Starting development environment..."
-	@docker compose -f docker-compose.infra-dev.yml up -d --build
+	@docker compose -f deployments/docker-compose/infra-dev.yml up -d --build
 
 ## infra-down: Stop development environment (infrastructure only)
 infra-down:
 	@echo "Stopping development environment..."
-	@docker compose -f docker-compose.infra-dev.yml down
+	@docker compose -f deployments/docker-compose/infra-dev.yml down
 
 ## infra-logs: View development environment (infrastructure only) logs
 infra-logs:
-	@docker compose -f docker-compose.infra-dev.yml logs -f
+	@docker compose -f deployments/docker-compose/infra-dev.yml logs -f
 
 ## infra-restart: Restart development environment (infrastructure only)
 infra-restart: infra-down infra-up
@@ -214,30 +281,30 @@ infra-restart: infra-down infra-up
 ## prod-api-up: Start production API server (Machine 1)
 prod-api-up:
 	@echo "Starting production API server (Machine 1)..."
-	@docker compose -f docker-compose.api.yml up -d --build
+	@docker compose -f deployments/docker-compose/api.yml up -d --build
 
 ## prod-api-down: Stop production API server (Machine 1)
 prod-api-down:
 	@echo "Stopping production API server (Machine 1)..."
-	@docker compose -f docker-compose.api.yml down
+	@docker compose -f deployments/docker-compose/api.yml down
 
 ## prod-api-logs: View production API server logs
 prod-api-logs:
-	@docker compose -f docker-compose.api.yml logs -f
+	@docker compose -f deployments/docker-compose/api.yml logs -f
 
 ## prod-worker-up: Start production worker server (Machine 2)
 prod-worker-up:
 	@echo "Starting production worker server (Machine 2)..."
-	@docker compose -f docker-compose.worker.yml up -d --build
+	@docker compose -f deployments/docker-compose/worker.yml up -d --build
 
 ## prod-worker-down: Stop production worker server (Machine 2)
 prod-worker-down:
 	@echo "Stopping production worker server (Machine 2)..."
-	@docker compose -f docker-compose.worker.yml down
+	@docker compose -f deployments/docker-compose/worker.yml down
 
 ## prod-worker-logs: View production worker server logs
 prod-worker-logs:
-	@docker compose -f docker-compose.worker.yml logs -f
+	@docker compose -f deployments/docker-compose/worker.yml logs -f
 
 ## deploy-machine1: Deploy Machine 1 using script
 deploy-machine1:

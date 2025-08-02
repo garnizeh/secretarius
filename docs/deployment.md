@@ -244,34 +244,34 @@ make deploy-machine1
 make prod-api-up
 
 # Method 4: Manual deployment with docker-compose
-docker compose -f docker-compose.api.yml pull
-docker compose -f docker-compose.api.yml up -d
+docker compose -f deployments/docker-compose/api.yml pull
+docker compose -f deployments/docker-compose/api.yml up -d
 
 # Monitor startup
 make prod-api-logs
 # OR
-docker compose -f docker-compose.api.yml logs -f
+docker compose -f deployments/docker-compose/api.yml logs -f
 ```
 
 #### 4.3 Verify Machine 1 Deployment
 
 ```bash
 # Check all services are running
-docker compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 
 # Check health endpoints
 curl -f http://localhost:8080/health
 curl -f http://localhost/health  # Through Caddy
 
 # Check database connection
-docker compose -f docker-compose.api.yml exec postgres psql -U englog -d englog -c "SELECT version();"
+docker compose -f deployments/docker-compose/api.yml exec postgres psql -U englog -d englog -c "SELECT version();"
 
 # Check Redis connection
-docker compose -f docker-compose.api.yml exec redis redis-cli ping
+docker compose -f deployments/docker-compose/api.yml exec redis redis-cli ping
 
 # View logs
-docker compose -f docker-compose.api.yml logs api-server
-docker compose -f docker-compose.api.yml logs caddy
+docker compose -f deployments/docker-compose/api.yml logs api-server
+docker compose -f deployments/docker-compose/api.yml logs caddy
 ```
 
 ### Step 5: Deploy Machine 2 (Worker Server)
@@ -309,20 +309,20 @@ make deploy-machine2
 make prod-worker-up
 
 # Method 4: Manual deployment with docker-compose
-docker compose -f docker-compose.worker.yml pull
-docker compose -f docker-compose.worker.yml up -d
+docker compose -f deployments/docker-compose/worker.yml pull
+docker compose -f deployments/docker-compose/worker.yml up -d
 
 # Monitor startup
 make prod-worker-logs
 # OR
-docker compose -f docker-compose.worker.yml logs -f
+docker compose -f deployments/docker-compose/worker.yml logs -f
 ```
 
 #### 5.4 Verify Machine 2 Deployment
 
 ```bash
 # Check services are running
-docker compose -f docker-compose.worker.yml ps
+docker compose -f deployments/docker-compose/worker.yml ps
 
 # Check worker health
 curl -f http://localhost:9091/health

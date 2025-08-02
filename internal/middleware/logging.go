@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"time"
 
 	"github.com/garnizeh/englog/internal/logging"
@@ -9,19 +8,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// Define a custom type for context keys to avoid collisions
-type contextKey string
-
-const traceIDKey contextKey = "trace_id"
-
 // RequestLogger creates a structured logging middleware with request context
 func RequestLogger(logger *logging.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		traceID := uuid.New().String()
 
-		// Add trace ID to context for request tracing
-		ctx := context.WithValue(c.Request.Context(), traceIDKey, traceID)
+		// Add trace ID to context for request tracing using logging package helper
+		ctx := logging.SetTraceID(c.Request.Context(), traceID)
 		c.Request = c.Request.WithContext(ctx)
 
 		// Add trace ID to response headers for client correlation

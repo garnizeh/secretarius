@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -350,7 +351,7 @@ func TestMultipleSpacesInAuthHeader(t *testing.T) {
 // Helper function to create a valid access token for testing
 func createValidToken(t *testing.T, authService *auth.AuthService) string {
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(context.Background(), userID)
 	require.NoError(t, err)
 	return token
 }
@@ -366,7 +367,7 @@ func BenchmarkRequireAuthMiddleware(b *testing.B) {
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(context.Background(), userID)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -394,7 +395,7 @@ func BenchmarkOptionalAuthMiddleware(b *testing.B) {
 	authService := auth.NewAuthService(nil, testLogger, "test-secret-key-for-benchmarking")
 
 	userID := uuid.New().String()
-	token, err := authService.CreateAccessToken(userID)
+	token, err := authService.CreateAccessToken(context.Background(), userID)
 	if err != nil {
 		b.Fatal(err)
 	}

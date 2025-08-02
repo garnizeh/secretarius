@@ -9,7 +9,7 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../../scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U englog -d englog"]
       interval: 10s

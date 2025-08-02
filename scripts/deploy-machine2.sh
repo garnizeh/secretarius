@@ -4,7 +4,14 @@ set -e
 echo "Deploying EngLog Worker Server (Machine 2)..."
 
 # Load environment variables
-source .env.production
+if [ -f ".env" ]; then
+    source .env
+elif [ -f "deployments/environments/production/.env.worker" ]; then
+    source deployments/environments/production/.env.worker
+else
+    echo "Error: No environment file found. Please create .env or use 'make env-prod-worker'"
+    exit 1
+fi
 
 # Create necessary directories
 mkdir -p logs/worker logs/scheduler
@@ -17,10 +24,10 @@ if ! curl -f "${OLLAMA_URL:-http://localhost:11434}/api/tags" >/dev/null 2>&1; t
 fi
 
 # Pull latest images
-docker compose -f docker-compose.worker.yml pull
+docker compose -f deployments/docker-compose/worker.yml pull
 
 # Start services
-docker compose -f docker-compose.worker.yml up -d
+docker compose -f deployments/docker-compose/worker.yml up -d
 
 # Wait for services to be ready
 echo "Waiting for worker services to be ready..."

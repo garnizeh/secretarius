@@ -1580,10 +1580,10 @@ volumes:
 ```bash
 # Machine 1 (API Server)
 export DB_PASSWORD="your_secure_password"
-docker-compose -f docker-compose.api.yml up -d
+docker compose -f deployments/docker-compose/api.yml up -d
 
 # Machine 2 (Worker Server)
-docker-compose -f docker-compose.worker.yml up -d
+docker compose -f deployments/docker-compose/worker.yml up -d
 
 # Initial Ollama model setup on Machine 2
 docker exec -it worker_ollama_1 ollama pull llama3.2
@@ -4237,10 +4237,10 @@ mkdir -p certs
 # Copy server.crt, server.key, ca.crt to ./certs/
 
 # Deploy API server
-docker-compose -f docker-compose.api.yml up -d
+docker compose -f deployments/docker-compose/api.yml up -d
 
 # Verify services
-docker-compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 ```
 
 #### 2. Prepare Machine 2 (Worker Server)
@@ -4255,14 +4255,14 @@ mkdir -p certs
 # Copy client.crt, client.key, ca.crt to ./certs/
 
 # Deploy worker server
-docker-compose -f docker-compose.worker.yml up -d
+docker compose -f deployments/docker-compose/worker.yml up -d
 
 # Setup Ollama models
 docker exec -it englog_ollama_1 ollama pull llama3.2
 docker exec -it englog_ollama_1 ollama pull codellama
 
 # Verify services
-docker-compose -f docker-compose.worker.yml ps
+docker compose -f deployments/docker-compose/worker.yml ps
 ```
       - "443:443"
     volumes:
@@ -4424,7 +4424,7 @@ curl http://10.0.1.20:11434/api/tags
 
 # Machine 1 monitoring
 echo "=== API Server Status ==="
-docker-compose -f docker-compose.api.yml ps
+docker compose -f deployments/docker-compose/api.yml ps
 
 echo "=== Database Size ==="
 docker exec englog_postgres_1 psql -U englog -c "SELECT pg_size_pretty(pg_database_size('englog'));"
@@ -4434,7 +4434,7 @@ docker exec englog_redis_1 redis-cli info memory | grep used_memory_human
 
 # Machine 2 monitoring
 echo "=== Worker Server Status ==="
-docker-compose -f docker-compose.worker.yml ps
+docker compose -f deployments/docker-compose/worker.yml ps
 
 echo "=== Ollama Models ==="
 docker exec englog_ollama_1 ollama list
@@ -4476,13 +4476,13 @@ echo "Backup completed: englog_backup_$DATE.tar.gz"
 
 ```bash
 # View API server logs
-docker-compose -f docker-compose.api.yml logs -f api-server
+docker compose -f deployments/docker-compose/api.yml logs -f api-server
 
 # View worker logs
-docker-compose -f docker-compose.worker.yml logs -f worker-server
+docker compose -f deployments/docker-compose/worker.yml logs -f worker-server
 
 # View database logs
-docker-compose -f docker-compose.api.yml logs postgres
+docker compose -f deployments/docker-compose/api.yml logs postgres
 
 # Cleanup old logs (weekly cron job)
 find ./logs -name "*.log" -mtime +30 -delete
