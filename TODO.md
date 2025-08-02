@@ -11,7 +11,7 @@
 **Document**: [LLM Config Hierarchy Proposal](docs/llm-config-hierarchy-proposal.md)
 
 **Description**:
-Implement hierarchical LLM model configuration system to replace the current hardcoded model ("llama3.2:3b") with a flexible system with precedence: User > TaskType > System.
+Implement hierarchical LLM model configuration system to replace the current hardcoded model ("qwen2.5-coder:7b") with a flexible system with precedence: User > TaskType > System.
 
 **Subtasks**:
 
