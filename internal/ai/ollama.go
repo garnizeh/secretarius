@@ -504,27 +504,11 @@ func (s *OllamaService) HealthCheck(ctx context.Context) error {
 	s.logger.Debug("Performing AI service health check")
 
 	// Simple health check by making a basic request
-	req := &GenerateRequest{
-		Model:  "qwen2.5-coder:7b",
-		Prompt: "Hello",
-		Stream: false,
-	}
-
-	url := fmt.Sprintf("%s/api/generate", s.baseURL)
-
-	jsonData, err := json.Marshal(req)
-	if err != nil {
-		s.logger.LogError(ctx, err, "Health check failed: error marshaling request")
-		return fmt.Errorf("failed to marshal health check request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", s.baseURL, nil)
 	if err != nil {
 		s.logger.LogError(ctx, err, "Health check failed: error creating HTTP request")
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
 
 	// Use a shorter timeout for health checks
 	healthCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -554,7 +538,9 @@ func (s *OllamaService) HealthCheck(ctx context.Context) error {
 	s.logger.Debug("AI service health check passed",
 		"duration", duration.String())
 	return nil
-} // generateWithTimeout makes a request to Ollama with the specified timeout
+}
+
+// generateWithTimeout makes a request to Ollama with the specified timeout
 func (s *OllamaService) generateWithTimeout(ctx context.Context, model, prompt string, timeout time.Duration) (string, error) {
 	s.logger.Debug("Making generation request",
 		"model", model,

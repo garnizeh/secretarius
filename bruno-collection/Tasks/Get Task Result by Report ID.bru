@@ -19,24 +19,24 @@ tests {
   test("Status should be 200 or 404", function() {
     expect([200, 404]).to.include(res.getStatus());
   });
-
+  
   if (res.getStatus() === 200) {
     test("Should return task result", function() {
       expect(res.getBody()).to.have.property('task_id');
       expect(res.getBody()).to.have.property('status');
       expect(res.getBody()).to.have.property('started_at');
     });
-
+  
     test("Task ID should match request", function() {
       expect(res.getBody().task_id).to.equal(bru.getVar("report_task_id"));
     });
-
+  
     test("Status should be valid", function() {
       const validStatuses = ['pending', 'running', 'completed', 'failed'];
       expect(validStatuses).to.include(res.getBody().status);
     });
   }
-
+  
   if (res.getStatus() === 404) {
     test("Should return error message", function() {
       expect(res.getBody()).to.have.property('error');

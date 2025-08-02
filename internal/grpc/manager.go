@@ -179,6 +179,7 @@ func (m *Manager) QueueInsightGenerationTask(userID string, entryIDs []string, i
 		return "", fmt.Errorf("failed to marshal task payload: %w", err)
 	}
 
+	// CHECK: How to use entryIDs in the task request? Adjust the deadlline and priority as needed
 	task := &workerpb.TaskRequest{
 		TaskId:   taskID,
 		TaskType: workerpb.TaskType_TASK_TYPE_INSIGHT_GENERATION,
