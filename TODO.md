@@ -6,6 +6,7 @@
 
 - create rfcs
 - create logger for tests: many testes create their own logger, we should create a common one in testutils
+- refactor api to use logger patterns (see worker)
 
 ### 🎯 Task 0125: Hierarchical LLM Model Configuration System
 **Priority**: HIGH
