@@ -66,5 +66,12 @@ func DB(t testing.TB) *database.DB {
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
+	// Cleanup database connections when test ends to prevent connection leaks
+	t.Cleanup(func() {
+		if db != nil {
+			db.CloseDB()
+		}
+	})
+
 	return db
 }
