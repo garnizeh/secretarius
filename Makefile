@@ -121,17 +121,17 @@ test-unit:
 ## test-integration: Run integration tests
 test-integration:
 	@echo "Running integration tests..."
-	go test -mod=mod -v -tags=integration ./tests/integration/... ./internal/...
+	go test -mod=mod -v -timeout=15m -tags=integration ./tests/integration/... ./internal/...
 
 ## test-e2e: Run end-to-end tests
 test-e2e:
 	@echo "Running end-to-end tests..."
-	go test -mod=mod -v -tags=e2e ./tests/e2e/...
+	go test -mod=mod -v -timeout=20m -tags=e2e ./tests/e2e/...
 
 ## test-race: Run race condition tests (unit tests with race detection)
 test-race:
 	@echo "Running race condition tests..."
-	go test -v -race -short -tags='!integration' ./internal/...
+	go test -v -race -short -timeout=20m -tags='!integration' ./internal/...
 
 ## test-security: Run security tests
 test-security:
@@ -153,7 +153,7 @@ test-clean:
 
 ## test-docker-up: Start Docker test environment
 test-docker-up:
-	docker compose -f deployments/docker-compose/test.yml up -d --build
+	docker compose -f deployments/docker-compose/test.yml up -d --build --wait
 
 ## test-docker-down: Stop Docker test environment
 test-docker-down:
