@@ -315,8 +315,8 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string) error {
 		return fmt.Errorf("failed to verify user: %w", err)
 	}
 
-	// Now delete the user
-	if err := s.db.Write(ctx, func(qtx *store.Queries) error {
+	// Now delete the user with retry logic handled by the database layer
+	if err := s.db.WriteWithRetry(ctx, func(qtx *store.Queries) error {
 		err := qtx.DeleteUser(ctx, userUUID)
 		if err != nil {
 			return fmt.Errorf("failed to delete user: %w", err)

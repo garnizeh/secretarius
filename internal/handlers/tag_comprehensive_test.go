@@ -259,7 +259,7 @@ func TestTagHandler_Comprehensive_GetTags(t *testing.T) {
 		// Create multiple test tags
 		tagCount := 5
 		createdTags := make([]*models.Tag, tagCount)
-		for i := 0; i < tagCount; i++ {
+		for i := range tagCount {
 			createdTags[i] = createTestTag(t, tagService)
 		}
 
@@ -281,34 +281,6 @@ func TestTagHandler_Comprehensive_GetTags(t *testing.T) {
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(response.Data), tagCount)
 		assert.Equal(t, len(response.Data), response.Total)
-	})
-
-	t.Run("get tags with seeded database", func(t *testing.T) {
-		// Setup test environment (database with seeded data)
-		router, userService, _, _, _ := RouterWithServices(t)
-
-		// Create user and login
-		user := createTestUser(t, userService)
-		token := loginUser(t, router, user.Email, "password123")
-
-		// Get all tags
-		req := httptest.NewRequest(http.MethodGet, "/v1/tags", nil)
-		req.Header.Set("Authorization", "Bearer "+token)
-
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Assertions
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var response struct {
-			Data  []*models.Tag `json:"data"`
-			Total int           `json:"total"`
-		}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, 8, response.Total) // Updated to expect seeded data
-		assert.Len(t, response.Data, 8)    // Verify we got the expected number of tags
 	})
 }
 

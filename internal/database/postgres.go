@@ -124,6 +124,50 @@ func (db *DB) Write(
 	return db.transaction(ctx, db.wrdb, txOpts, f)
 }
 
+// WriteWithRetry executes a read-write transaction with retry logic for serialization errors
+func (db *DB) WriteWithRetry(
+	ctx context.Context,
+	f func(qtx *store.Queries) error,
+) error {
+	txOpts := pgx.TxOptions{
+		AccessMode: pgx.ReadWrite,
+		IsoLevel:   pgx.Serializable,
+	}
+
+	const maxRetries = 3
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		lastErr = db.transaction(ctx, db.wrdb, txOpts, f)
+
+		if lastErr == nil {
+			return nil
+		}
+
+		// Check if it's a serialization error
+		if !isSerializationError(lastErr) {
+			return lastErr
+		}
+
+		// If we have retries left, wait a bit before retrying
+		if attempt < maxRetries {
+			// Exponential backoff with jitter
+			baseDelay := time.Duration(attempt+1) * 50 * time.Millisecond
+			jitter := time.Duration(attempt*10) * time.Millisecond
+			delay := baseDelay + jitter
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(delay):
+				// Continue to next attempt
+			}
+		}
+	}
+
+	return fmt.Errorf("transaction failed after %d retries: %w", maxRetries, lastErr)
+}
+
 // NoRows is useful to check if a query returned no rows.
 func NoRows(err error) bool {
 	return err != nil && errors.Is(err, sql.ErrNoRows)

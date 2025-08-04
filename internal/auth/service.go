@@ -511,6 +511,8 @@ func (a *AuthService) CleanupExpiredSessions(ctx context.Context) error {
 
 // deactivateSessionsByRefreshToken deactivates sessions that use a specific refresh token
 func (a *AuthService) deactivateSessionsByRefreshToken(ctx context.Context, refreshToken string) error {
+	a.logger.Info("Deactivating sessions by refresh token", "refresh_token", refreshToken)
+	
 	// For now, we'll get all active sessions and check each one
 	// In production, this should be optimized with a proper database query
 	err := a.db.Write(ctx, func(qtx *store.Queries) error {
