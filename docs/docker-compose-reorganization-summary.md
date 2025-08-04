@@ -13,7 +13,7 @@
 ├── docker-compose.api.yml
 ├── docker-compose.dev.yml
 ├── docker-compose.infra-dev.yml
-├── docker-compose.test.yml
+├── deployments/docker-compose/test.yml
 ├── docker-compose.worker-dev.yml
 ├── docker-compose.worker.yml
 └── deployments/
